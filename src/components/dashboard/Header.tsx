@@ -1,4 +1,5 @@
 import { Search, Bell, Settings, Menu } from "lucide-react";
+import { Link } from "react-router-dom";
 
 interface HeaderProps {
   onMenuToggle: () => void;
@@ -42,9 +43,12 @@ export function Header({ onMenuToggle, title = "Dashboard Overview" }: HeaderPro
         <button className="flex items-center justify-center rounded-xl h-10 w-10 md:h-11 md:w-11 bg-secondary text-foreground transition-all hover:bg-secondary/80">
           <Bell className="h-5 w-5" />
         </button>
-        <button className="flex items-center justify-center rounded-xl h-10 w-10 md:h-11 md:w-11 bg-secondary text-foreground transition-all hover:bg-secondary/80">
+        <Link
+          to="/settings"
+          className="flex items-center justify-center rounded-xl h-10 w-10 md:h-11 md:w-11 bg-secondary text-foreground transition-all hover:bg-secondary/80"
+        >
           <Settings className="h-5 w-5" />
-        </button>
+        </Link>
       </div>
     </header>
   );

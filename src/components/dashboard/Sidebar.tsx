@@ -1,6 +1,7 @@
-import { Lightbulb, LayoutDashboard, Package, FileText, X } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Lightbulb, LayoutDashboard, Package, FileText, X, LogOut } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface NavItem {
   icon: React.ElementType;
@@ -21,12 +22,28 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen, onToggle }: SidebarProps) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
   const isActive = (href: string) => {
     if (href === "/") {
       return location.pathname === "/";
     }
     return location.pathname.startsWith(href);
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
+
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
   };
 
   return (
@@ -93,12 +110,23 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
         <div className="mt-auto p-6 border-t border-border">
           <div className="flex items-center gap-3">
             <div className="rounded-full h-10 w-10 bg-primary/10 flex items-center justify-center">
-              <span className="text-primary font-bold text-sm">AS</span>
+              <span className="text-primary font-bold text-sm">
+                {user ? getInitials(user.name) : "?"}
+              </span>
             </div>
-            <div className="flex flex-col overflow-hidden">
-              <p className="text-sm font-bold truncate">Asif Shakoor</p>
-              <p className="text-xs text-muted-foreground truncate">Owner Account</p>
+            <div className="flex flex-col overflow-hidden flex-1">
+              <p className="text-sm font-bold truncate">{user?.name || "Guest"}</p>
+              <p className="text-xs text-muted-foreground truncate capitalize">
+                {user?.role || "Unknown"} Account
+              </p>
             </div>
+            <button
+              onClick={handleLogout}
+              className="p-2 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+              title="Logout"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
           </div>
         </div>
       </aside>
