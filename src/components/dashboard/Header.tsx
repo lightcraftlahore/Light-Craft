@@ -2,9 +2,10 @@ import { Search, Bell, Settings, Menu } from "lucide-react";
 
 interface HeaderProps {
   onMenuToggle: () => void;
+  title?: string;
 }
 
-export function Header({ onMenuToggle }: HeaderProps) {
+export function Header({ onMenuToggle, title = "Dashboard Overview" }: HeaderProps) {
   return (
     <header className="sticky top-0 z-10 flex items-center justify-between bg-card/80 backdrop-blur-md border-b border-border px-4 md:px-8 py-4">
       <div className="flex items-center gap-4 md:gap-8">
@@ -17,7 +18,7 @@ export function Header({ onMenuToggle }: HeaderProps) {
         </button>
 
         <h2 className="text-foreground text-lg md:text-xl font-bold tracking-tight">
-          Dashboard Overview
+          {title}
         </h2>
 
         {/* Search Bar - Hidden on mobile */}
