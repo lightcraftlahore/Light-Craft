@@ -1,4 +1,4 @@
-import { Lightbulb, LayoutDashboard, Package, Receipt, BarChart3, X } from "lucide-react";
+import { Lightbulb, LayoutDashboard, Package, FileText, X } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
@@ -11,8 +11,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/" },
   { icon: Package, label: "Inventory", href: "/inventory" },
-  { icon: Receipt, label: "New Invoice", href: "/sales/new" },
-  { icon: BarChart3, label: "Reports", href: "/reports" },
+  { icon: FileText, label: "Invoices", href: "/invoices" },
 ];
 
 interface SidebarProps {
