@@ -1,19 +1,18 @@
-import { useState } from "react";
-import { Lightbulb, LayoutDashboard, Package, Receipt, BarChart3, Menu, X } from "lucide-react";
+import { Lightbulb, LayoutDashboard, Package, Receipt, BarChart3, X } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
   icon: React.ElementType;
   label: string;
   href: string;
-  active?: boolean;
 }
 
 const navItems: NavItem[] = [
-  { icon: LayoutDashboard, label: "Dashboard", href: "#", active: true },
-  { icon: Package, label: "Inventory", href: "#" },
-  { icon: Receipt, label: "Sales", href: "#" },
-  { icon: BarChart3, label: "Reports", href: "#" },
+  { icon: LayoutDashboard, label: "Dashboard", href: "/" },
+  { icon: Package, label: "Inventory", href: "/inventory" },
+  { icon: Receipt, label: "Sales", href: "/sales" },
+  { icon: BarChart3, label: "Reports", href: "/reports" },
 ];
 
 interface SidebarProps {
@@ -22,6 +21,15 @@ interface SidebarProps {
 }
 
 export function Sidebar({ isOpen, onToggle }: SidebarProps) {
+  const location = useLocation();
+
+  const isActive = (href: string) => {
+    if (href === "/") {
+      return location.pathname === "/";
+    }
+    return location.pathname.startsWith(href);
+  };
+
   return (
     <>
       {/* Mobile overlay */}
@@ -60,21 +68,25 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
 
           {/* Navigation */}
           <nav className="flex flex-col gap-2">
-            {navItems.map((item) => (
-              <a
-                key={item.label}
-                href={item.href}
-                className={cn(
-                  "flex items-center gap-3 px-4 py-3 rounded-xl transition-colors",
-                  item.active
-                    ? "bg-primary text-primary-foreground"
-                    : "text-foreground hover:bg-secondary"
-                )}
-              >
-                <item.icon className={cn("h-5 w-5", !item.active && "text-muted-foreground")} />
-                <p className="text-sm font-semibold">{item.label}</p>
-              </a>
-            ))}
+            {navItems.map((item) => {
+              const active = isActive(item.href);
+              return (
+                <Link
+                  key={item.label}
+                  to={item.href}
+                  onClick={() => onToggle()}
+                  className={cn(
+                    "flex items-center gap-3 px-4 py-3 rounded-xl transition-colors",
+                    active
+                      ? "bg-primary text-primary-foreground"
+                      : "text-foreground hover:bg-secondary"
+                  )}
+                >
+                  <item.icon className={cn("h-5 w-5", !active && "text-muted-foreground")} />
+                  <p className="text-sm font-semibold">{item.label}</p>
+                </Link>
+              );
+            })}
           </nav>
         </div>
 
