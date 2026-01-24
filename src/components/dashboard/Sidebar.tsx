@@ -11,7 +11,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/" },
   { icon: Package, label: "Inventory", href: "/inventory" },
-  { icon: Receipt, label: "Sales", href: "/sales" },
+  { icon: Receipt, label: "New Invoice", href: "/sales/new" },
   { icon: BarChart3, label: "Reports", href: "/reports" },
 ];
 
