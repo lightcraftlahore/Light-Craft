@@ -9,9 +9,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Building2, Users, Plus, Trash2, Upload, Save } from "lucide-react";
+import { Building2, Users, Plus, Trash2, Upload, Save, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { getAllUsers, createUser, deleteUser } from "@/lib/api";
 
 interface CompanySettings {
   name: string;
@@ -22,11 +23,10 @@ interface CompanySettings {
 }
 
 interface AppUser {
-  id: string;
+  _id: string;
   email: string;
-  password: string;
   name: string;
-  role: "admin" | "user";
+  role: string;
 }
 
 const DEFAULT_COMPANY: CompanySettings = {
@@ -42,31 +42,45 @@ const Settings = () => {
   const [companySettings, setCompanySettings] = useState<CompanySettings>(DEFAULT_COMPANY);
   const [users, setUsers] = useState<AppUser[]>([]);
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
-  const [newUser, setNewUser] = useState<{ email: string; password: string; name: string; role: "admin" | "user" }>({ email: "", password: "", name: "", role: "user" });
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  const [isAddingUser, setIsAddingUser] = useState(false);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+  const [newUser, setNewUser] = useState<{ email: string; password: string; name: string; role: string }>({ email: "", password: "", name: "", role: "User" });
   const { toast } = useToast();
   const { user: currentUser } = useAuth();
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
-  // Load settings from localStorage
+  // Load company settings from localStorage
   useEffect(() => {
     const storedCompany = localStorage.getItem("company_settings");
     if (storedCompany) {
       setCompanySettings(JSON.parse(storedCompany));
     }
-
-    const storedUsers = localStorage.getItem("app_users");
-    if (storedUsers) {
-      setUsers(JSON.parse(storedUsers));
-    } else {
-      // Initialize with default admin
-      const defaultUsers = [
-        { id: "1", email: "admin@demo.com", password: "admin123", name: "Admin User", role: "admin" as const },
-      ];
-      setUsers(defaultUsers);
-      localStorage.setItem("app_users", JSON.stringify(defaultUsers));
-    }
   }, []);
+
+  // Fetch users from API
+  useEffect(() => {
+    const fetchUsers = async () => {
+      setIsLoadingUsers(true);
+      try {
+        const fetchedUsers = await getAllUsers();
+        setUsers(fetchedUsers);
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: error instanceof Error ? error.message : "Failed to fetch users",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoadingUsers(false);
+      }
+    };
+
+    if (currentUser?.role === "admin" || currentUser?.role === "Super Admin") {
+      fetchUsers();
+    }
+  }, [currentUser, toast]);
 
   const handleSaveCompany = () => {
     localStorage.setItem("company_settings", JSON.stringify(companySettings));
@@ -87,7 +101,7 @@ const Settings = () => {
     }
   };
 
-  const handleAddUser = () => {
+  const handleAddUser = async () => {
     if (!newUser.email || !newUser.password || !newUser.name) {
       toast({
         title: "Validation Error",
@@ -97,34 +111,46 @@ const Settings = () => {
       return;
     }
 
-    // Check for duplicate email
-    if (users.some((u) => u.email === newUser.email)) {
+    setIsAddingUser(true);
+    try {
+      const createdUser = await createUser({
+        name: newUser.name,
+        email: newUser.email,
+        password: newUser.password,
+        role: newUser.role,
+      });
+
+      setUsers((prev) => [...prev, createdUser]);
+      setNewUser({ email: "", password: "", name: "", role: "User" });
+      setIsAddUserOpen(false);
+
       toast({
-        title: "User Exists",
-        description: "A user with this email already exists",
+        title: "User Added",
+        description: `${createdUser.name} has been added successfully`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to create user",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAddingUser(false);
+    }
+  };
+
+  const handleDeleteUser = async (id: string) => {
+    const userToDelete = users.find((u) => u._id === id);
+    
+    if (userToDelete?.role === "Super Admin") {
+      toast({
+        title: "Cannot Delete",
+        description: "Cannot delete Super Admin",
         variant: "destructive",
       });
       return;
     }
 
-    const user: AppUser = {
-      id: Date.now().toString(),
-      ...newUser,
-    };
-
-    const updatedUsers = [...users, user];
-    setUsers(updatedUsers);
-    localStorage.setItem("app_users", JSON.stringify(updatedUsers));
-    setNewUser({ email: "", password: "", name: "", role: "user" });
-    setIsAddUserOpen(false);
-
-    toast({
-      title: "User Added",
-      description: `${user.name} has been added successfully`,
-    });
-  };
-
-  const handleDeleteUser = (id: string) => {
     if (id === currentUser?.id) {
       toast({
         title: "Cannot Delete",
@@ -134,17 +160,27 @@ const Settings = () => {
       return;
     }
 
-    const updatedUsers = users.filter((u) => u.id !== id);
-    setUsers(updatedUsers);
-    localStorage.setItem("app_users", JSON.stringify(updatedUsers));
+    setDeletingUserId(id);
+    try {
+      await deleteUser(id);
+      setUsers((prev) => prev.filter((u) => u._id !== id));
 
-    toast({
-      title: "User Deleted",
-      description: "User has been removed successfully",
-    });
+      toast({
+        title: "User Deleted",
+        description: "User has been removed successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete user",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingUserId(null);
+    }
   };
 
-  const isAdmin = currentUser?.role === "admin";
+  const isAdmin = currentUser?.role === "admin" || currentUser?.role === "Super Admin";
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -337,7 +373,7 @@ const Settings = () => {
                           <Label htmlFor="new-role">Role</Label>
                           <Select
                             value={newUser.role}
-                            onValueChange={(value: "admin" | "user") =>
+                            onValueChange={(value: string) =>
                               setNewUser((prev) => ({ ...prev, role: value }))
                             }
                           >
@@ -345,62 +381,82 @@ const Settings = () => {
                               <SelectValue placeholder="Select role" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="admin">Admin</SelectItem>
-                              <SelectItem value="user">User</SelectItem>
+                              <SelectItem value="Admin">Admin</SelectItem>
+                              <SelectItem value="User">User</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
                       </div>
                       <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsAddUserOpen(false)}>
+                        <Button variant="outline" onClick={() => setIsAddUserOpen(false)} disabled={isAddingUser}>
                           Cancel
                         </Button>
-                        <Button onClick={handleAddUser}>Add User</Button>
+                        <Button onClick={handleAddUser} disabled={isAddingUser}>
+                          {isAddingUser ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Adding...
+                            </>
+                          ) : (
+                            "Add User"
+                          )}
+                        </Button>
                       </DialogFooter>
                     </DialogContent>
                   </Dialog>
                 </CardHeader>
                 <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Role</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {users.map((user) => (
-                        <TableRow key={user.id}>
-                          <TableCell className="font-medium">{user.name}</TableCell>
-                          <TableCell>{user.email}</TableCell>
-                          <TableCell>
-                            <span
-                              className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                user.role === "admin"
-                                  ? "bg-primary/10 text-primary"
-                                  : "bg-secondary text-secondary-foreground"
-                              }`}
-                            >
-                              {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDeleteUser(user.id)}
-                              disabled={user.id === currentUser?.id}
-                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
+                  {isLoadingUsers ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                      <span className="ml-2 text-muted-foreground">Loading users...</span>
+                    </div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Role</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {users.map((user) => (
+                          <TableRow key={user._id}>
+                            <TableCell className="font-medium">{user.name}</TableCell>
+                            <TableCell>{user.email}</TableCell>
+                            <TableCell>
+                              <span
+                                className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                  user.role === "Admin" || user.role === "Super Admin"
+                                    ? "bg-primary/10 text-primary"
+                                    : "bg-secondary text-secondary-foreground"
+                                }`}
+                              >
+                                {user.role}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeleteUser(user._id)}
+                                disabled={user._id === currentUser?.id || user.role === "Super Admin" || deletingUserId === user._id}
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              >
+                                {deletingUserId === user._id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>

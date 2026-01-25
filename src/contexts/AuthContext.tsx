@@ -1,64 +1,71 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { loginUser as apiLogin } from "@/lib/api";
 
 export interface User {
   id: string;
   email: string;
   name: string;
-  role: "admin" | "user";
+  role: "admin" | "user" | "Super Admin";
 }
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
+  token: string | null;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Default admin user for demo
-const DEFAULT_USERS = [
-  { id: "1", email: "admin@demo.com", password: "admin123", name: "Admin User", role: "admin" as const },
-];
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
 
   useEffect(() => {
     // Check for existing session on mount
     const storedUser = localStorage.getItem("auth_user");
-    if (storedUser) {
+    const storedToken = localStorage.getItem("auth_token");
+    if (storedUser && storedToken) {
       setUser(JSON.parse(storedUser));
+      setToken(storedToken);
     }
   }, []);
 
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
-    // Get users from localStorage or use defaults
-    const storedUsers = localStorage.getItem("app_users");
-    const users = storedUsers ? JSON.parse(storedUsers) : DEFAULT_USERS;
-    
-    // Find matching user
-    const matchedUser = users.find(
-      (u: typeof DEFAULT_USERS[0]) => u.email === email && u.password === password
-    );
+    try {
+      const response = await apiLogin(email, password);
+      
+      const userData: User = {
+        id: response._id,
+        email: response.email,
+        name: response.name,
+        role: response.role as "admin" | "user" | "Super Admin",
+      };
 
-    if (matchedUser) {
-      const { password: _, ...userWithoutPassword } = matchedUser;
-      setUser(userWithoutPassword);
-      localStorage.setItem("auth_user", JSON.stringify(userWithoutPassword));
+      setUser(userData);
+      setToken(response.token);
+      localStorage.setItem("auth_user", JSON.stringify(userData));
+      localStorage.setItem("auth_token", response.token);
+      
       return { success: true };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : "Login failed" 
+      };
     }
-
-    return { success: false, error: "Invalid email or password" };
   };
 
   const logout = () => {
     setUser(null);
+    setToken(null);
     localStorage.removeItem("auth_user");
+    localStorage.removeItem("auth_token");
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, token, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
