@@ -1,5 +1,7 @@
 const API_BASE_URL = "https://light-craft-backend.vercel.app/api";
 
+// ============ Types ============
+
 interface LoginResponse {
   _id: string;
   name: string;
@@ -15,16 +17,40 @@ interface UserResponse {
   role: string;
 }
 
+export interface ProductImage {
+  url: string;
+  public_id: string;
+}
+
+export interface Product {
+  _id: string;
+  name: string;
+  sku: string;
+  description?: string;
+  costPrice: number;
+  sellingPrice: number;
+  stock: number;
+  image?: ProductImage;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ProductsResponse {
+  products: Product[];
+  page: number;
+  pages: number;
+}
+
 interface ApiError {
   message: string;
 }
 
-// Helper to get auth token
+// ============ Auth Helpers ============
+
 const getAuthToken = (): string | null => {
   return localStorage.getItem("auth_token");
 };
 
-// Helper for authenticated requests
 const authHeaders = (): HeadersInit => {
   const token = getAuthToken();
   return {
@@ -33,7 +59,15 @@ const authHeaders = (): HeadersInit => {
   };
 };
 
-// Login user
+const authHeadersMultipart = (): HeadersInit => {
+  const token = getAuthToken();
+  return {
+    ...(token && { Authorization: `Bearer ${token}` }),
+  };
+};
+
+// ============ Auth API ============
+
 export const loginUser = async (email: string, password: string): Promise<LoginResponse> => {
   const response = await fetch(`${API_BASE_URL}/auth/login`, {
     method: "POST",
@@ -49,7 +83,6 @@ export const loginUser = async (email: string, password: string): Promise<LoginR
   return response.json();
 };
 
-// Get all users
 export const getAllUsers = async (): Promise<UserResponse[]> => {
   const response = await fetch(`${API_BASE_URL}/auth/users`, {
     method: "GET",
@@ -64,7 +97,6 @@ export const getAllUsers = async (): Promise<UserResponse[]> => {
   return response.json();
 };
 
-// Create new user
 export const createUser = async (userData: {
   name: string;
   email: string;
@@ -85,7 +117,6 @@ export const createUser = async (userData: {
   return response.json();
 };
 
-// Delete user
 export const deleteUser = async (userId: string): Promise<{ message: string }> => {
   const response = await fetch(`${API_BASE_URL}/auth/users/${userId}`, {
     method: "DELETE",
@@ -95,6 +126,84 @@ export const deleteUser = async (userId: string): Promise<{ message: string }> =
   if (!response.ok) {
     const error: ApiError = await response.json();
     throw new Error(error.message || "Failed to delete user");
+  }
+
+  return response.json();
+};
+
+// ============ Product API ============
+
+export const getProducts = async (keyword?: string, pageNumber?: number): Promise<ProductsResponse> => {
+  const params = new URLSearchParams();
+  if (keyword) params.append("keyword", keyword);
+  if (pageNumber) params.append("pageNumber", pageNumber.toString());
+
+  const response = await fetch(`${API_BASE_URL}/products?${params.toString()}`, {
+    method: "GET",
+    headers: authHeaders(),
+  });
+
+  if (!response.ok) {
+    const error: ApiError = await response.json();
+    throw new Error(error.message || "Failed to fetch products");
+  }
+
+  return response.json();
+};
+
+export const getProductById = async (id: string): Promise<Product> => {
+  const response = await fetch(`${API_BASE_URL}/products/${id}`, {
+    method: "GET",
+    headers: authHeaders(),
+  });
+
+  if (!response.ok) {
+    const error: ApiError = await response.json();
+    throw new Error(error.message || "Product not found");
+  }
+
+  return response.json();
+};
+
+export const createProduct = async (formData: FormData): Promise<Product> => {
+  const response = await fetch(`${API_BASE_URL}/products`, {
+    method: "POST",
+    headers: authHeadersMultipart(),
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const error: ApiError = await response.json();
+    throw new Error(error.message || "Failed to create product");
+  }
+
+  return response.json();
+};
+
+export const updateProduct = async (id: string, formData: FormData): Promise<Product> => {
+  const response = await fetch(`${API_BASE_URL}/products/${id}`, {
+    method: "PUT",
+    headers: authHeadersMultipart(),
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const error: ApiError = await response.json();
+    throw new Error(error.message || "Failed to update product");
+  }
+
+  return response.json();
+};
+
+export const deleteProduct = async (id: string): Promise<{ message: string }> => {
+  const response = await fetch(`${API_BASE_URL}/products/${id}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+
+  if (!response.ok) {
+    const error: ApiError = await response.json();
+    throw new Error(error.message || "Failed to delete product");
   }
 
   return response.json();

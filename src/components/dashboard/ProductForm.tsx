@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Upload, X, Save, Package } from "lucide-react";
+import { ArrowLeft, Upload, X, Save, Package, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { createProduct, updateProduct, Product } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 
 interface ProductFormData {
   name: string;
@@ -9,31 +11,33 @@ interface ProductFormData {
   description: string;
   costPrice: string;
   sellingPrice: string;
-  startingQuantity: string;
-  lowStockThreshold: string;
-  image?: string;
+  stock: string;
 }
 
 interface ProductFormProps {
-  initialData?: Partial<ProductFormData>;
+  initialData?: Product;
   isEditing?: boolean;
   productId?: string;
 }
 
 export function ProductForm({ initialData, isEditing = false, productId }: ProductFormProps) {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
   const [formData, setFormData] = useState<ProductFormData>({
     name: initialData?.name || "",
     sku: initialData?.sku || "",
     description: initialData?.description || "",
-    costPrice: initialData?.costPrice || "",
-    sellingPrice: initialData?.sellingPrice || "",
-    startingQuantity: initialData?.startingQuantity || "",
-    lowStockThreshold: initialData?.lowStockThreshold || "20",
-    image: initialData?.image || "",
+    costPrice: initialData?.costPrice?.toString() || "",
+    sellingPrice: initialData?.sellingPrice?.toString() || "",
+    stock: initialData?.stock?.toString() || "",
   });
-  const [imagePreview, setImagePreview] = useState<string | null>(initialData?.image || null);
+  
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(initialData?.image?.url || null);
   const [errors, setErrors] = useState<Partial<Record<keyof ProductFormData, string>>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleInputChange = (field: keyof ProductFormData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -46,22 +50,28 @@ export function ProductForm({ initialData, isEditing = false, productId }: Produ
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
-        setErrors((prev) => ({ ...prev, image: "Image must be less than 5MB" }));
+        toast({
+          title: "Image too large",
+          description: "Image must be less than 5MB",
+          variant: "destructive",
+        });
         return;
       }
+      setImageFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
-        const result = reader.result as string;
-        setImagePreview(result);
-        setFormData((prev) => ({ ...prev, image: result }));
+        setImagePreview(reader.result as string);
       };
       reader.readAsDataURL(file);
     }
   };
 
   const removeImage = () => {
+    setImageFile(null);
     setImagePreview(null);
-    setFormData((prev) => ({ ...prev, image: "" }));
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   const validateForm = (): boolean => {
@@ -91,26 +101,62 @@ export function ProductForm({ initialData, isEditing = false, productId }: Produ
       newErrors.sellingPrice = "Enter a valid price";
     }
 
-    if (!formData.startingQuantity) {
-      newErrors.startingQuantity = "Starting quantity is required";
+    if (!formData.stock) {
+      newErrors.stock = "Stock quantity is required";
     } else if (
-      isNaN(Number(formData.startingQuantity)) ||
-      Number(formData.startingQuantity) < 0 ||
-      !Number.isInteger(Number(formData.startingQuantity))
+      isNaN(Number(formData.stock)) ||
+      Number(formData.stock) < 0 ||
+      !Number.isInteger(Number(formData.stock))
     ) {
-      newErrors.startingQuantity = "Enter a valid whole number";
+      newErrors.stock = "Enter a valid whole number";
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (validateForm()) {
-      // TODO: Save to database
-      console.log("Saving product:", formData);
+    if (!validateForm()) return;
+
+    setIsSubmitting(true);
+
+    try {
+      const apiFormData = new FormData();
+      apiFormData.append("name", formData.name.trim());
+      apiFormData.append("sku", formData.sku.trim());
+      apiFormData.append("description", formData.description.trim());
+      apiFormData.append("costPrice", formData.costPrice);
+      apiFormData.append("sellingPrice", formData.sellingPrice);
+      apiFormData.append("stock", formData.stock);
+
+      if (imageFile) {
+        apiFormData.append("image", imageFile);
+      }
+
+      if (isEditing && productId) {
+        await updateProduct(productId, apiFormData);
+        toast({
+          title: "Product Updated",
+          description: `${formData.name} has been updated successfully`,
+        });
+      } else {
+        await createProduct(apiFormData);
+        toast({
+          title: "Product Created",
+          description: `${formData.name} has been added to inventory`,
+        });
+      }
+
       navigate("/inventory");
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to save product",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -121,6 +167,7 @@ export function ProductForm({ initialData, isEditing = false, productId }: Produ
         <button
           onClick={() => navigate("/inventory")}
           className="p-2 rounded-xl hover:bg-secondary transition-colors"
+          disabled={isSubmitting}
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
@@ -152,8 +199,9 @@ export function ProductForm({ initialData, isEditing = false, productId }: Produ
                 value={formData.name}
                 onChange={(e) => handleInputChange("name", e.target.value)}
                 placeholder="e.g., 12W LED Bulb"
+                disabled={isSubmitting}
                 className={cn(
-                  "w-full h-11 px-4 rounded-xl bg-secondary border-2 text-foreground placeholder:text-muted-foreground focus:outline-none transition-colors",
+                  "w-full h-11 px-4 rounded-xl bg-secondary border-2 text-foreground placeholder:text-muted-foreground focus:outline-none transition-colors disabled:opacity-50",
                   errors.name ? "border-destructive" : "border-transparent focus:border-primary"
                 )}
               />
@@ -169,8 +217,9 @@ export function ProductForm({ initialData, isEditing = false, productId }: Produ
                 value={formData.sku}
                 onChange={(e) => handleInputChange("sku", e.target.value.toUpperCase())}
                 placeholder="e.g., LED-12W-001"
+                disabled={isSubmitting || isEditing}
                 className={cn(
-                  "w-full h-11 px-4 rounded-xl bg-secondary border-2 text-foreground placeholder:text-muted-foreground focus:outline-none font-mono transition-colors",
+                  "w-full h-11 px-4 rounded-xl bg-secondary border-2 text-foreground placeholder:text-muted-foreground focus:outline-none font-mono transition-colors disabled:opacity-50",
                   errors.sku ? "border-destructive" : "border-transparent focus:border-primary"
                 )}
               />
@@ -183,7 +232,8 @@ export function ProductForm({ initialData, isEditing = false, productId }: Produ
                   onChange={(e) => handleInputChange("description", e.target.value)}
                   placeholder="Enter product description (optional)"
                   rows={3}
-                  className="w-full px-4 py-3 rounded-xl bg-secondary border-2 border-transparent text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary resize-none transition-colors"
+                  disabled={isSubmitting}
+                  className="w-full px-4 py-3 rounded-xl bg-secondary border-2 border-transparent text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary resize-none transition-colors disabled:opacity-50"
                 />
               </FormField>
             </div>
@@ -193,7 +243,7 @@ export function ProductForm({ initialData, isEditing = false, productId }: Produ
         {/* Pricing */}
         <div className="bg-card rounded-2xl border border-border p-6 shadow-sm">
           <h2 className="text-lg font-bold text-foreground mb-4">Pricing & Stock</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <FormField
               label="Cost Price (Rs.)"
               required
@@ -206,8 +256,9 @@ export function ProductForm({ initialData, isEditing = false, productId }: Produ
                 placeholder="0"
                 min="0"
                 step="0.01"
+                disabled={isSubmitting}
                 className={cn(
-                  "w-full h-11 px-4 rounded-xl bg-secondary border-2 text-foreground placeholder:text-muted-foreground focus:outline-none transition-colors",
+                  "w-full h-11 px-4 rounded-xl bg-secondary border-2 text-foreground placeholder:text-muted-foreground focus:outline-none transition-colors disabled:opacity-50",
                   errors.costPrice ? "border-destructive" : "border-transparent focus:border-primary"
                 )}
               />
@@ -225,41 +276,31 @@ export function ProductForm({ initialData, isEditing = false, productId }: Produ
                 placeholder="0"
                 min="0"
                 step="0.01"
+                disabled={isSubmitting}
                 className={cn(
-                  "w-full h-11 px-4 rounded-xl bg-secondary border-2 text-foreground placeholder:text-muted-foreground focus:outline-none transition-colors",
+                  "w-full h-11 px-4 rounded-xl bg-secondary border-2 text-foreground placeholder:text-muted-foreground focus:outline-none transition-colors disabled:opacity-50",
                   errors.sellingPrice ? "border-destructive" : "border-transparent focus:border-primary"
                 )}
               />
             </FormField>
 
             <FormField
-              label="Starting Quantity"
+              label="Stock Quantity"
               required
-              error={errors.startingQuantity}
+              error={errors.stock}
             >
               <input
                 type="number"
-                value={formData.startingQuantity}
-                onChange={(e) => handleInputChange("startingQuantity", e.target.value)}
+                value={formData.stock}
+                onChange={(e) => handleInputChange("stock", e.target.value)}
                 placeholder="0"
                 min="0"
                 step="1"
+                disabled={isSubmitting}
                 className={cn(
-                  "w-full h-11 px-4 rounded-xl bg-secondary border-2 text-foreground placeholder:text-muted-foreground focus:outline-none transition-colors",
-                  errors.startingQuantity ? "border-destructive" : "border-transparent focus:border-primary"
+                  "w-full h-11 px-4 rounded-xl bg-secondary border-2 text-foreground placeholder:text-muted-foreground focus:outline-none transition-colors disabled:opacity-50",
+                  errors.stock ? "border-destructive" : "border-transparent focus:border-primary"
                 )}
-              />
-            </FormField>
-
-            <FormField label="Low Stock Threshold">
-              <input
-                type="number"
-                value={formData.lowStockThreshold}
-                onChange={(e) => handleInputChange("lowStockThreshold", e.target.value)}
-                placeholder="20"
-                min="0"
-                step="1"
-                className="w-full h-11 px-4 rounded-xl bg-secondary border-2 border-transparent text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
               />
             </FormField>
           </div>
@@ -279,25 +320,30 @@ export function ProductForm({ initialData, isEditing = false, productId }: Produ
               <button
                 type="button"
                 onClick={removeImage}
-                className="absolute -top-2 -right-2 p-1.5 rounded-full bg-destructive text-destructive-foreground shadow-lg hover:scale-110 transition-transform"
+                disabled={isSubmitting}
+                className="absolute -top-2 -right-2 p-1.5 rounded-full bg-destructive text-destructive-foreground shadow-lg hover:scale-110 transition-transform disabled:opacity-50"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
           ) : (
-            <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-border rounded-xl cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors">
+            <label className={cn(
+              "flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-border rounded-xl cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors",
+              isSubmitting && "opacity-50 cursor-not-allowed"
+            )}>
               <Upload className="h-8 w-8 text-muted-foreground mb-2" />
               <span className="text-sm font-medium text-muted-foreground">Click to upload image</span>
               <span className="text-xs text-muted-foreground mt-1">PNG, JPG up to 5MB</span>
               <input
+                ref={fileInputRef}
                 type="file"
                 accept="image/*"
                 onChange={handleImageChange}
+                disabled={isSubmitting}
                 className="hidden"
               />
             </label>
           )}
-          {errors.image && <p className="text-sm text-destructive mt-2">{errors.image}</p>}
         </div>
 
         {/* Actions */}
@@ -305,16 +351,27 @@ export function ProductForm({ initialData, isEditing = false, productId }: Produ
           <button
             type="button"
             onClick={() => navigate("/inventory")}
-            className="px-6 py-3 rounded-xl bg-secondary text-foreground font-bold hover:bg-secondary/80 transition-colors"
+            disabled={isSubmitting}
+            className="px-6 py-3 rounded-xl bg-secondary text-foreground font-bold hover:bg-secondary/80 transition-colors disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="flex items-center justify-center gap-2 px-8 py-3 rounded-xl bg-primary text-primary-foreground font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform"
+            disabled={isSubmitting}
+            className="flex items-center justify-center gap-2 px-8 py-3 rounded-xl bg-primary text-primary-foreground font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform disabled:opacity-50 disabled:hover:scale-100"
           >
-            <Save className="h-5 w-5" />
-            {isEditing ? "Update Product" : "Save Product"}
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" />
+                {isEditing ? "Updating..." : "Saving..."}
+              </>
+            ) : (
+              <>
+                <Save className="h-5 w-5" />
+                {isEditing ? "Update Product" : "Save Product"}
+              </>
+            )}
           </button>
         </div>
       </form>
