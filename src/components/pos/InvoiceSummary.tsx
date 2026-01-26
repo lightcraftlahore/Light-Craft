@@ -1,14 +1,16 @@
 import { useState } from "react";
-import { Printer, Save, Calculator, User, Phone } from "lucide-react";
+import { Printer, Save, Calculator, User, Phone, CreditCard, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CartItem } from "./CartTable";
 
 interface InvoiceSummaryProps {
   items: CartItem[];
-  onSaveAndPrint: (customerInfo: CustomerInfo) => void;
-  onSaveOnly: (customerInfo: CustomerInfo) => void;
+  onSaveAndPrint: (customerInfo: CustomerInfo, taxRate: number, paymentMethod: PaymentMethod) => void;
+  onSaveOnly: (customerInfo: CustomerInfo, taxRate: number, paymentMethod: PaymentMethod) => void;
   isProcessing: boolean;
 }
+
+export type PaymentMethod = "Cash" | "Card" | "Bank Transfer";
 
 export interface CustomerInfo {
   name: string;
@@ -19,6 +21,7 @@ export function InvoiceSummary({ items, onSaveAndPrint, onSaveOnly, isProcessing
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [taxRate, setTaxRate] = useState(0);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("Cash");
 
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const taxAmount = (subtotal * taxRate) / 100;
@@ -61,6 +64,30 @@ export function InvoiceSummary({ items, onSaveAndPrint, onSaveOnly, isProcessing
               className="w-full h-11 pl-10 pr-4 rounded-xl bg-secondary border-2 border-transparent text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors text-sm"
             />
           </div>
+        </div>
+      </div>
+
+      {/* Payment Method */}
+      <div className="p-4 md:p-6 border-b border-border">
+        <h3 className="text-base font-bold text-foreground mb-4 flex items-center gap-2">
+          <CreditCard className="h-4 w-4 text-primary" />
+          Payment Method
+        </h3>
+        <div className="flex gap-2">
+          {(["Cash", "Card", "Bank Transfer"] as PaymentMethod[]).map((method) => (
+            <button
+              key={method}
+              onClick={() => setPaymentMethod(method)}
+              className={cn(
+                "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors",
+                paymentMethod === method
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+              )}
+            >
+              {method}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -109,7 +136,7 @@ export function InvoiceSummary({ items, onSaveAndPrint, onSaveOnly, isProcessing
       {/* Action Buttons */}
       <div className="p-4 md:p-6 pt-0 space-y-3">
         <button
-          onClick={() => onSaveAndPrint(customerInfo)}
+          onClick={() => onSaveAndPrint(customerInfo, taxRate, paymentMethod)}
           disabled={!canSave}
           className={cn(
             "w-full flex items-center justify-center gap-3 h-14 rounded-xl font-bold text-lg transition-all",
@@ -118,12 +145,16 @@ export function InvoiceSummary({ items, onSaveAndPrint, onSaveOnly, isProcessing
               : "bg-secondary text-muted-foreground cursor-not-allowed"
           )}
         >
-          <Printer className="h-5 w-5" />
+          {isProcessing ? (
+            <Loader2 className="h-5 w-5 animate-spin" />
+          ) : (
+            <Printer className="h-5 w-5" />
+          )}
           {isProcessing ? "Processing..." : "Save & Print"}
         </button>
 
         <button
-          onClick={() => onSaveOnly(customerInfo)}
+          onClick={() => onSaveOnly(customerInfo, taxRate, paymentMethod)}
           disabled={!canSave}
           className={cn(
             "w-full flex items-center justify-center gap-3 h-12 rounded-xl font-bold transition-all",
@@ -132,7 +163,11 @@ export function InvoiceSummary({ items, onSaveAndPrint, onSaveOnly, isProcessing
               : "bg-secondary text-muted-foreground cursor-not-allowed border-2 border-transparent"
           )}
         >
-          <Save className="h-5 w-5" />
+          {isProcessing ? (
+            <Loader2 className="h-5 w-5 animate-spin" />
+          ) : (
+            <Save className="h-5 w-5" />
+          )}
           Save Only
         </button>
       </div>

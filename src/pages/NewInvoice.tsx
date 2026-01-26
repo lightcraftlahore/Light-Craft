@@ -4,7 +4,8 @@ import { Sidebar } from "@/components/dashboard/Sidebar";
 import { Header } from "@/components/dashboard/Header";
 import { ProductSearch, type Product } from "@/components/pos/ProductSearch";
 import { CartTable, type CartItem } from "@/components/pos/CartTable";
-import { InvoiceSummary, type CustomerInfo } from "@/components/pos/InvoiceSummary";
+import { InvoiceSummary, type CustomerInfo, type PaymentMethod } from "@/components/pos/InvoiceSummary";
+import { createInvoice, type Invoice } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
 const NewInvoice = () => {
@@ -17,11 +18,9 @@ const NewInvoice = () => {
 
   const handleAddProduct = (product: Product, quantity: number) => {
     setCartItems((prev) => {
-      // Check if product already exists in cart
       const existingItem = prev.find((item) => item.productId === product.id);
       
       if (existingItem) {
-        // Update quantity
         return prev.map((item) =>
           item.productId === product.id
             ? { ...item, quantity: item.quantity + quantity }
@@ -29,7 +28,6 @@ const NewInvoice = () => {
         );
       }
       
-      // Add new item
       const newItem: CartItem = {
         id: `cart-${Date.now()}`,
         productId: product.id,
@@ -62,49 +60,50 @@ const NewInvoice = () => {
     setCartItems((prev) => prev.filter((item) => item.id !== itemId));
   };
 
-  const generateInvoiceNumber = () => {
-    const date = new Date();
-    const dateStr = date.toISOString().slice(0, 10).replace(/-/g, "");
-    const random = Math.floor(Math.random() * 1000).toString().padStart(3, "0");
-    return `INV-${dateStr}-${random}`;
-  };
-
-  const handleSaveAndPrint = async (customerInfo: CustomerInfo) => {
+  const handleSaveInvoice = async (
+    customerInfo: CustomerInfo,
+    taxRate: number,
+    paymentMethod: PaymentMethod,
+    shouldPrint: boolean
+  ) => {
     setIsProcessing(true);
     
     try {
-      const invoiceNumber = generateInvoiceNumber();
-      const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-      
-      // TODO: Save to database
-      console.log("Saving invoice:", {
-        invoiceNumber,
-        customer: customerInfo,
-        items: cartItems,
-        subtotal,
-        savedAt: new Date().toISOString(),
-      });
+      const payload = {
+        customerName: customerInfo.name,
+        customerPhone: customerInfo.phone || undefined,
+        items: cartItems.map((item) => ({
+          product: item.productId,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+        })),
+        taxRate,
+        paymentMethod,
+      };
 
-      // Generate printable content
-      const printWindow = window.open("", "_blank");
-      if (printWindow) {
-        printWindow.document.write(generatePrintableInvoice(invoiceNumber, customerInfo, cartItems, subtotal));
-        printWindow.document.close();
-        printWindow.focus();
-        printWindow.print();
+      const savedInvoice = await createInvoice(payload);
+
+      if (shouldPrint) {
+        const printWindow = window.open("", "_blank");
+        if (printWindow) {
+          printWindow.document.write(generatePrintableInvoice(savedInvoice));
+          printWindow.document.close();
+          printWindow.focus();
+          printWindow.print();
+        }
       }
 
       toast({
         title: "Invoice saved!",
-        description: `Invoice ${invoiceNumber} has been saved and sent to printer.`,
+        description: `Invoice ${savedInvoice.invoiceNumber} has been saved${shouldPrint ? " and sent to printer" : ""}.`,
       });
 
-      // Reset cart
       setCartItems([]);
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to save invoice. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to save invoice. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -112,38 +111,12 @@ const NewInvoice = () => {
     }
   };
 
-  const handleSaveOnly = async (customerInfo: CustomerInfo) => {
-    setIsProcessing(true);
-    
-    try {
-      const invoiceNumber = generateInvoiceNumber();
-      const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-      
-      // TODO: Save to database
-      console.log("Saving invoice:", {
-        invoiceNumber,
-        customer: customerInfo,
-        items: cartItems,
-        subtotal,
-        savedAt: new Date().toISOString(),
-      });
+  const handleSaveAndPrint = async (customerInfo: CustomerInfo, taxRate: number, paymentMethod: PaymentMethod) => {
+    await handleSaveInvoice(customerInfo, taxRate, paymentMethod, true);
+  };
 
-      toast({
-        title: "Invoice saved!",
-        description: `Invoice ${invoiceNumber} has been saved to history.`,
-      });
-
-      // Reset cart
-      setCartItems([]);
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to save invoice. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsProcessing(false);
-    }
+  const handleSaveOnly = async (customerInfo: CustomerInfo, taxRate: number, paymentMethod: PaymentMethod) => {
+    await handleSaveInvoice(customerInfo, taxRate, paymentMethod, false);
   };
 
   return (
@@ -196,23 +169,18 @@ const NewInvoice = () => {
 };
 
 // Helper function to generate printable invoice HTML
-function generatePrintableInvoice(
-  invoiceNumber: string,
-  customer: CustomerInfo,
-  items: CartItem[],
-  subtotal: number
-): string {
-  const date = new Date().toLocaleDateString("en-PK", {
+function generatePrintableInvoice(invoice: Invoice): string {
+  const date = new Date(invoice.createdAt).toLocaleDateString("en-PK", {
     year: "numeric",
     month: "long",
     day: "numeric",
   });
 
-  const itemsHtml = items
+  const itemsHtml = invoice.items
     .map(
       (item) => `
       <tr>
-        <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.name}<br><small style="color: #666;">${item.sku}</small></td>
+        <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.name}<br><small style="color: #666;">${item.sku || ""}</small></td>
         <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
         <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">Rs. ${item.price.toLocaleString()}</td>
         <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right; font-weight: bold;">Rs. ${(item.price * item.quantity).toLocaleString()}</td>
@@ -225,7 +193,7 @@ function generatePrintableInvoice(
     <!DOCTYPE html>
     <html>
     <head>
-      <title>Invoice ${invoiceNumber}</title>
+      <title>Invoice ${invoice.invoiceNumber}</title>
       <style>
         body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 20px; }
         .header { text-align: center; margin-bottom: 30px; }
@@ -248,12 +216,13 @@ function generatePrintableInvoice(
       <div class="invoice-info">
         <div>
           <strong>Bill To:</strong><br>
-          ${customer.name}<br>
-          ${customer.phone || "—"}
+          ${invoice.customerName}<br>
+          ${invoice.customerPhone || "—"}
         </div>
         <div style="text-align: right;">
-          <strong>Invoice #:</strong> ${invoiceNumber}<br>
-          <strong>Date:</strong> ${date}
+          <strong>Invoice #:</strong> ${invoice.invoiceNumber}<br>
+          <strong>Date:</strong> ${date}<br>
+          <strong>Payment:</strong> ${invoice.paymentMethod}
         </div>
       </div>
       
@@ -272,8 +241,9 @@ function generatePrintableInvoice(
       </table>
       
       <div class="total-section">
-        <p>Subtotal: <strong>Rs. ${subtotal.toLocaleString()}</strong></p>
-        <p class="grand-total">Grand Total: Rs. ${subtotal.toLocaleString()}</p>
+        <p>Subtotal: <strong>Rs. ${invoice.subTotal.toLocaleString()}</strong></p>
+        ${invoice.taxAmount > 0 ? `<p>Tax (${invoice.taxRate}%): <strong>Rs. ${invoice.taxAmount.toLocaleString()}</strong></p>` : ""}
+        <p class="grand-total">Grand Total: Rs. ${invoice.grandTotal.toLocaleString()}</p>
       </div>
       
       <div style="text-align: center; margin-top: 40px; color: #666; font-size: 12px;">

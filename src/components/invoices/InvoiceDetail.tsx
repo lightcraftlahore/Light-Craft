@@ -1,7 +1,7 @@
 import { Printer, ArrowLeft, Phone, Calendar, Hash } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import type { Invoice } from "@/data/invoices";
-import { formatDate, StatusBadge } from "@/data/invoices";
+import { StatusBadge, formatDate } from "@/data/invoices";
+import type { Invoice } from "@/lib/api";
 
 interface InvoiceDetailProps {
   invoice: Invoice;
@@ -68,10 +68,10 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
                 </div>
                 <div className="flex items-center gap-2 md:justify-end">
                   <Calendar className="h-4 w-4 text-muted-foreground print:text-gray-500" />
-                  <span>{formatDate(invoice.date)}</span>
+                  <span>{formatDate(invoice.createdAt)}</span>
                 </div>
                 <div className="mt-2">
-                  <StatusBadge status={invoice.status} />
+                  <StatusBadge status={invoice.paymentStatus} />
                 </div>
               </div>
             </div>
@@ -108,7 +108,9 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
                 <tr key={index}>
                   <td className="py-4">
                     <p className="font-bold text-foreground print:text-black">{item.name}</p>
-                    <p className="text-xs text-muted-foreground print:text-gray-500 font-mono">{item.sku}</p>
+                    {item.sku && (
+                      <p className="text-xs text-muted-foreground print:text-gray-500 font-mono">{item.sku}</p>
+                    )}
                   </td>
                   <td className="py-4 text-center font-medium">{item.quantity}</td>
                   <td className="py-4 text-right">Rs. {item.price.toLocaleString()}</td>
@@ -125,12 +127,12 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
             <div className="flex flex-col items-end space-y-2">
               <div className="flex justify-between w-full max-w-xs text-sm">
                 <span className="text-muted-foreground print:text-gray-600">Subtotal</span>
-                <span className="font-medium">Rs. {invoice.subtotal.toLocaleString()}</span>
+                <span className="font-medium">Rs. {invoice.subTotal.toLocaleString()}</span>
               </div>
-              {invoice.tax > 0 && (
+              {invoice.taxAmount > 0 && (
                 <div className="flex justify-between w-full max-w-xs text-sm">
-                  <span className="text-muted-foreground print:text-gray-600">Tax</span>
-                  <span className="font-medium">Rs. {invoice.tax.toLocaleString()}</span>
+                  <span className="text-muted-foreground print:text-gray-600">Tax ({invoice.taxRate}%)</span>
+                  <span className="font-medium">Rs. {invoice.taxAmount.toLocaleString()}</span>
                 </div>
               )}
               <div className="flex justify-between w-full max-w-xs pt-2 border-t border-border print:border-gray-300">

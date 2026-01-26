@@ -1,59 +1,83 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Search, Calendar, Eye, FileText, Filter } from "lucide-react";
+import { Search, Calendar, Eye, FileText, Loader2 } from "lucide-react";
+import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
-import { mockInvoices, StatusBadge, formatDate, type Invoice } from "@/data/invoices";
+import { StatusBadge, formatDate } from "@/data/invoices";
+import { getInvoices, type Invoice } from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { useToast } from "@/hooks/use-toast";
 
-type DateFilter = "all" | "today" | "7days" | "30days" | "90days";
+type DateFilter = "all" | "today" | "7days" | "30days" | "90days" | "custom";
 
-interface InvoiceListProps {
-  onViewInvoice?: (invoice: Invoice) => void;
-}
-
-export function InvoiceList({ onViewInvoice }: InvoiceListProps) {
+export function InvoiceList() {
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
-  const [statusFilter, setStatusFilter] = useState<"all" | "Paid" | "Pending">("all");
+  const [customStartDate, setCustomStartDate] = useState<Date | undefined>();
+  const [customEndDate, setCustomEndDate] = useState<Date | undefined>();
+  const { toast } = useToast();
 
-  const filteredInvoices = useMemo(() => {
-    const now = new Date();
-    
-    return mockInvoices.filter((invoice) => {
-      // Search filter
-      const matchesSearch =
-        invoice.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        invoice.invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        invoice.customerPhone.includes(searchQuery);
+  const fetchInvoices = async () => {
+    setLoading(true);
+    try {
+      const now = new Date();
+      let startDate: string | undefined;
+      let endDate: string | undefined;
 
-      // Date filter
-      const invoiceDate = new Date(invoice.date);
-      let matchesDate = true;
-      
       switch (dateFilter) {
         case "today":
-          matchesDate = invoiceDate.toDateString() === now.toDateString();
+          startDate = startOfDay(now).toISOString();
+          endDate = endOfDay(now).toISOString();
           break;
         case "7days":
-          matchesDate = invoiceDate >= new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          startDate = startOfDay(subDays(now, 7)).toISOString();
+          endDate = endOfDay(now).toISOString();
           break;
         case "30days":
-          matchesDate = invoiceDate >= new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          startDate = startOfDay(subDays(now, 30)).toISOString();
+          endDate = endOfDay(now).toISOString();
           break;
         case "90days":
-          matchesDate = invoiceDate >= new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+          startDate = startOfDay(subDays(now, 90)).toISOString();
+          endDate = endOfDay(now).toISOString();
           break;
-        default:
-          matchesDate = true;
+        case "custom":
+          if (customStartDate) startDate = startOfDay(customStartDate).toISOString();
+          if (customEndDate) endDate = endOfDay(customEndDate).toISOString();
+          break;
       }
 
-      // Status filter
-      const matchesStatus = statusFilter === "all" || invoice.status === statusFilter;
+      const data = await getInvoices({
+        startDate,
+        endDate,
+        customerName: searchQuery.trim() || undefined,
+      });
+      setInvoices(data);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to fetch invoices",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      return matchesSearch && matchesDate && matchesStatus;
-    });
-  }, [searchQuery, dateFilter, statusFilter]);
+  useEffect(() => {
+    const debounce = setTimeout(fetchInvoices, 300);
+    return () => clearTimeout(debounce);
+  }, [dateFilter, searchQuery, customStartDate, customEndDate]);
 
-  const totalAmount = filteredInvoices.reduce((sum, inv) => sum + inv.grandTotal, 0);
+  const totalAmount = invoices.reduce((sum, inv) => sum + inv.grandTotal, 0);
 
   return (
     <div className="space-y-4">
@@ -71,7 +95,7 @@ export function InvoiceList({ onViewInvoice }: InvoiceListProps) {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="flex-1 h-full bg-transparent border-none text-foreground placeholder:text-muted-foreground px-3 text-sm focus:outline-none"
-                placeholder="Search by customer name, invoice #, or phone..."
+                placeholder="Search by customer name..."
               />
             </div>
           </div>
@@ -89,29 +113,55 @@ export function InvoiceList({ onViewInvoice }: InvoiceListProps) {
               <option value="7days">Last 7 Days</option>
               <option value="30days">Last 30 Days</option>
               <option value="90days">Last 90 Days</option>
+              <option value="custom">Custom Range</option>
             </select>
           </div>
 
-          {/* Status Filter */}
-          <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-muted-foreground" />
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as "all" | "Paid" | "Pending")}
-              className="h-11 px-4 rounded-xl bg-secondary border-2 border-transparent text-foreground focus:outline-none focus:border-primary cursor-pointer"
-            >
-              <option value="all">All Status</option>
-              <option value="Paid">Paid</option>
-              <option value="Pending">Pending</option>
-            </select>
-          </div>
+          {/* Custom Date Range */}
+          {dateFilter === "custom" && (
+            <div className="flex items-center gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="h-11 px-4">
+                    {customStartDate ? format(customStartDate, "MMM dd, yyyy") : "Start Date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={customStartDate}
+                    onSelect={setCustomStartDate}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+              <span className="text-muted-foreground">to</span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="h-11 px-4">
+                    {customEndDate ? format(customEndDate, "MMM dd, yyyy") : "End Date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={customEndDate}
+                    onSelect={setCustomEndDate}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
         </div>
 
         {/* Summary */}
         <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-border text-sm">
           <div>
             <span className="text-muted-foreground">Total Invoices: </span>
-            <span className="font-bold">{filteredInvoices.length}</span>
+            <span className="font-bold">{invoices.length}</span>
           </div>
           <div>
             <span className="text-muted-foreground">Total Amount: </span>
@@ -129,90 +179,98 @@ export function InvoiceList({ onViewInvoice }: InvoiceListProps) {
           </h2>
         </div>
 
-        {/* Desktop Table */}
-        <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="bg-secondary/50">
-              <tr>
-                <th className="px-6 py-4 text-muted-foreground text-sm font-bold">Invoice #</th>
-                <th className="px-6 py-4 text-muted-foreground text-sm font-bold">Date</th>
-                <th className="px-6 py-4 text-muted-foreground text-sm font-bold">Customer</th>
-                <th className="px-6 py-4 text-muted-foreground text-sm font-bold">Items</th>
-                <th className="px-6 py-4 text-muted-foreground text-sm font-bold text-right">Amount</th>
-                <th className="px-6 py-4 text-muted-foreground text-sm font-bold text-center">Status</th>
-                <th className="px-6 py-4 text-muted-foreground text-sm font-bold w-20"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {filteredInvoices.map((invoice) => (
-                <tr key={invoice.id} className="hover:bg-secondary/30 transition-colors">
-                  <td className="px-6 py-4 text-sm font-mono font-bold">{invoice.invoiceNumber}</td>
-                  <td className="px-6 py-4 text-sm">{formatDate(invoice.date)}</td>
-                  <td className="px-6 py-4">
-                    <p className="text-sm font-bold">{invoice.customerName}</p>
-                    <p className="text-xs text-muted-foreground">{invoice.customerPhone}</p>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-muted-foreground">
-                    {invoice.items.length} item{invoice.items.length !== 1 ? "s" : ""}
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <span className="font-bold text-primary">Rs. {invoice.grandTotal.toLocaleString()}</span>
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <StatusBadge status={invoice.status} />
-                  </td>
-                  <td className="px-6 py-4">
-                    <Link
-                      to={`/invoices/${invoice.id}`}
-                      className="flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-primary/10 text-primary text-sm font-medium hover:bg-primary/20 transition-colors"
-                    >
-                      <Eye className="h-4 w-4" />
-                      View
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Mobile Cards */}
-        <div className="md:hidden divide-y divide-border">
-          {filteredInvoices.map((invoice) => (
-            <Link
-              key={invoice.id}
-              to={`/invoices/${invoice.id}`}
-              className="block p-4 hover:bg-secondary/30 transition-colors"
-            >
-              <div className="flex justify-between items-start mb-2">
-                <div>
-                  <p className="font-mono font-bold text-sm">{invoice.invoiceNumber}</p>
-                  <p className="text-xs text-muted-foreground">{formatDate(invoice.date)}</p>
-                </div>
-                <StatusBadge status={invoice.status} />
-              </div>
-              <div className="flex justify-between items-center">
-                <div>
-                  <p className="font-bold text-foreground">{invoice.customerName}</p>
-                  <p className="text-xs text-muted-foreground">{invoice.items.length} items</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-bold text-primary">Rs. {invoice.grandTotal.toLocaleString()}</p>
-                  <p className="text-xs text-muted-foreground flex items-center justify-end gap-1">
-                    <Eye className="h-3 w-3" /> View
-                  </p>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-
-        {filteredInvoices.length === 0 && (
-          <div className="p-8 text-center text-muted-foreground">
-            <FileText className="h-12 w-12 mx-auto mb-3 opacity-30" />
-            <p className="font-medium">No invoices found</p>
-            <p className="text-sm">Try adjusting your search or filters</p>
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
+        ) : (
+          <>
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left">
+                <thead className="bg-secondary/50">
+                  <tr>
+                    <th className="px-6 py-4 text-muted-foreground text-sm font-bold">Invoice #</th>
+                    <th className="px-6 py-4 text-muted-foreground text-sm font-bold">Date</th>
+                    <th className="px-6 py-4 text-muted-foreground text-sm font-bold">Customer</th>
+                    <th className="px-6 py-4 text-muted-foreground text-sm font-bold">Items</th>
+                    <th className="px-6 py-4 text-muted-foreground text-sm font-bold text-right">Amount</th>
+                    <th className="px-6 py-4 text-muted-foreground text-sm font-bold text-center">Status</th>
+                    <th className="px-6 py-4 text-muted-foreground text-sm font-bold w-20"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {invoices.map((invoice) => (
+                    <tr key={invoice._id} className="hover:bg-secondary/30 transition-colors">
+                      <td className="px-6 py-4 text-sm font-mono font-bold">{invoice.invoiceNumber}</td>
+                      <td className="px-6 py-4 text-sm">{formatDate(invoice.createdAt)}</td>
+                      <td className="px-6 py-4">
+                        <p className="text-sm font-bold">{invoice.customerName}</p>
+                        <p className="text-xs text-muted-foreground">{invoice.customerPhone || "—"}</p>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-muted-foreground">
+                        {invoice.items.length} item{invoice.items.length !== 1 ? "s" : ""}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <span className="font-bold text-primary">Rs. {invoice.grandTotal.toLocaleString()}</span>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <StatusBadge status={invoice.paymentStatus} />
+                      </td>
+                      <td className="px-6 py-4">
+                        <Link
+                          to={`/invoices/${invoice._id}`}
+                          className="flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-primary/10 text-primary text-sm font-medium hover:bg-primary/20 transition-colors"
+                        >
+                          <Eye className="h-4 w-4" />
+                          View
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Cards */}
+            <div className="md:hidden divide-y divide-border">
+              {invoices.map((invoice) => (
+                <Link
+                  key={invoice._id}
+                  to={`/invoices/${invoice._id}`}
+                  className="block p-4 hover:bg-secondary/30 transition-colors"
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <p className="font-mono font-bold text-sm">{invoice.invoiceNumber}</p>
+                      <p className="text-xs text-muted-foreground">{formatDate(invoice.createdAt)}</p>
+                    </div>
+                    <StatusBadge status={invoice.paymentStatus} />
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="font-bold text-foreground">{invoice.customerName}</p>
+                      <p className="text-xs text-muted-foreground">{invoice.items.length} items</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-primary">Rs. {invoice.grandTotal.toLocaleString()}</p>
+                      <p className="text-xs text-muted-foreground flex items-center justify-end gap-1">
+                        <Eye className="h-3 w-3" /> View
+                      </p>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+
+            {invoices.length === 0 && (
+              <div className="p-8 text-center text-muted-foreground">
+                <FileText className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                <p className="font-medium">No invoices found</p>
+                <p className="text-sm">Try adjusting your search or filters</p>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
