@@ -208,3 +208,146 @@ export const deleteProduct = async (id: string): Promise<{ message: string }> =>
 
   return response.json();
 };
+
+// ============ Invoice Types ============
+
+export interface InvoiceItem {
+  product: string;
+  name: string;
+  sku?: string;
+  price: number;
+  quantity: number;
+}
+
+export interface Invoice {
+  _id: string;
+  invoiceNumber: string;
+  customerName: string;
+  customerPhone?: string;
+  items: InvoiceItem[];
+  subTotal: number;
+  taxRate: number;
+  taxAmount: number;
+  grandTotal: number;
+  paymentMethod: "Cash" | "Card" | "Bank Transfer";
+  paymentStatus: "Paid" | "Pending";
+  creator?: {
+    _id: string;
+    name: string;
+  };
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface CreateInvoicePayload {
+  customerName: string;
+  customerPhone?: string;
+  items: {
+    product: string;
+    name: string;
+    price: number;
+    quantity: number;
+  }[];
+  taxRate: number;
+  paymentMethod: "Cash" | "Card" | "Bank Transfer";
+}
+
+// ============ Invoice API ============
+
+export const createInvoice = async (payload: CreateInvoicePayload): Promise<Invoice> => {
+  const response = await fetch(`${API_BASE_URL}/invoices`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const error: ApiError = await response.json();
+    throw new Error(error.message || "Failed to create invoice");
+  }
+
+  return response.json();
+};
+
+export const getInvoices = async (filters?: {
+  startDate?: string;
+  endDate?: string;
+  customerName?: string;
+}): Promise<Invoice[]> => {
+  const params = new URLSearchParams();
+  if (filters?.startDate) params.append("startDate", filters.startDate);
+  if (filters?.endDate) params.append("endDate", filters.endDate);
+  if (filters?.customerName) params.append("customerName", filters.customerName);
+
+  const response = await fetch(`${API_BASE_URL}/invoices?${params.toString()}`, {
+    method: "GET",
+    headers: authHeaders(),
+  });
+
+  if (!response.ok) {
+    const error: ApiError = await response.json();
+    throw new Error(error.message || "Failed to fetch invoices");
+  }
+
+  return response.json();
+};
+
+export const getInvoiceById = async (id: string): Promise<Invoice> => {
+  const response = await fetch(`${API_BASE_URL}/invoices/${id}`, {
+    method: "GET",
+    headers: authHeaders(),
+  });
+
+  if (!response.ok) {
+    const error: ApiError = await response.json();
+    throw new Error(error.message || "Invoice not found");
+  }
+
+  return response.json();
+};
+
+// ============ Dashboard Types ============
+
+export interface LowStockProduct {
+  _id: string;
+  name: string;
+  sku: string;
+  stock: number;
+  image?: ProductImage;
+}
+
+export interface RecentInvoice {
+  _id: string;
+  invoiceNumber: string;
+  customerName: string;
+  grandTotal: number;
+  createdAt: string;
+  creator?: {
+    _id: string;
+    name: string;
+  };
+}
+
+export interface DashboardStats {
+  totalSalesToday: number;
+  totalInvoicesToday: number;
+  totalItemsSold: number;
+  lowStockAlerts: LowStockProduct[];
+  recentActivity: RecentInvoice[];
+}
+
+// ============ Dashboard API ============
+
+export const getDashboardStats = async (): Promise<DashboardStats> => {
+  const response = await fetch(`${API_BASE_URL}/dashboard`, {
+    method: "GET",
+    headers: authHeaders(),
+  });
+
+  if (!response.ok) {
+    const error: ApiError = await response.json();
+    throw new Error(error.message || "Failed to fetch dashboard stats");
+  }
+
+  return response.json();
+};
