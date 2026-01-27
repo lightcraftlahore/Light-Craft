@@ -351,3 +351,53 @@ export const getDashboardStats = async (): Promise<DashboardStats> => {
 
   return response.json();
 };
+
+// ============ Settings Types ============
+
+export interface SettingsLogo {
+  url: string;
+  public_id: string;
+}
+
+export interface CompanySettings {
+  _id?: string;
+  companyName: string;
+  companyAddress: string;
+  companyPhone: string;
+  logo?: SettingsLogo;
+  taxRate: number;
+  currencySymbol: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// ============ Settings API ============
+
+export const getSettings = async (): Promise<CompanySettings> => {
+  const response = await fetch(`${API_BASE_URL}/settings`, {
+    method: "GET",
+    headers: authHeaders(),
+  });
+
+  if (!response.ok) {
+    const error: ApiError = await response.json();
+    throw new Error(error.message || "Failed to fetch settings");
+  }
+
+  return response.json();
+};
+
+export const updateSettings = async (formData: FormData): Promise<CompanySettings> => {
+  const response = await fetch(`${API_BASE_URL}/settings`, {
+    method: "PUT",
+    headers: authHeadersMultipart(),
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const error: ApiError = await response.json();
+    throw new Error(error.message || "Failed to update settings");
+  }
+
+  return response.json();
+};

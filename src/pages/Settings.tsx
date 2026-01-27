@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { Header } from "@/components/dashboard/Header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,15 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Building2, Users, Plus, Trash2, Upload, Save, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { getAllUsers, createUser, deleteUser } from "@/lib/api";
-
-interface CompanySettings {
-  name: string;
-  address: string;
-  phone: string;
-  email: string;
-  logo: string;
-}
+import { getAllUsers, createUser, deleteUser, getSettings, updateSettings, type CompanySettings as ApiCompanySettings } from "@/lib/api";
 
 interface AppUser {
   _id: string;
@@ -29,17 +21,19 @@ interface AppUser {
   role: string;
 }
 
-const DEFAULT_COMPANY: CompanySettings = {
-  name: "My Business",
-  address: "123 Business Street, City, Country",
-  phone: "+1 234 567 890",
-  email: "contact@mybusiness.com",
-  logo: "",
-};
-
 const Settings = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [companySettings, setCompanySettings] = useState<CompanySettings>(DEFAULT_COMPANY);
+  const [companyName, setCompanyName] = useState("");
+  const [companyAddress, setCompanyAddress] = useState("");
+  const [companyPhone, setCompanyPhone] = useState("");
+  const [taxRate, setTaxRate] = useState(0);
+  const [currencySymbol, setCurrencySymbol] = useState("Rs.");
+  const [logoUrl, setLogoUrl] = useState("");
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string>("");
+  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  
   const [users, setUsers] = useState<AppUser[]>([]);
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
@@ -48,16 +42,36 @@ const Settings = () => {
   const [newUser, setNewUser] = useState<{ email: string; password: string; name: string; role: string }>({ email: "", password: "", name: "", role: "User" });
   const { toast } = useToast();
   const { user: currentUser } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
-  // Load company settings from localStorage
+  // Fetch company settings from API
   useEffect(() => {
-    const storedCompany = localStorage.getItem("company_settings");
-    if (storedCompany) {
-      setCompanySettings(JSON.parse(storedCompany));
-    }
-  }, []);
+    const fetchSettings = async () => {
+      try {
+        const settings = await getSettings();
+        setCompanyName(settings.companyName || "");
+        setCompanyAddress(settings.companyAddress || "");
+        setCompanyPhone(settings.companyPhone || "");
+        setTaxRate(settings.taxRate || 0);
+        setCurrencySymbol(settings.currencySymbol || "Rs.");
+        if (settings.logo?.url) {
+          setLogoUrl(settings.logo.url);
+        }
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: error instanceof Error ? error.message : "Failed to load settings",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoadingSettings(false);
+      }
+    };
+
+    fetchSettings();
+  }, [toast]);
 
   // Fetch users from API
   useEffect(() => {
@@ -82,20 +96,60 @@ const Settings = () => {
     }
   }, [currentUser, toast]);
 
-  const handleSaveCompany = () => {
-    localStorage.setItem("company_settings", JSON.stringify(companySettings));
-    toast({
-      title: "Settings Saved",
-      description: "Company information has been updated successfully",
-    });
+  const handleSaveCompany = async () => {
+    setIsSavingSettings(true);
+    try {
+      const formData = new FormData();
+      formData.append("companyName", companyName);
+      formData.append("companyAddress", companyAddress);
+      formData.append("companyPhone", companyPhone);
+      formData.append("taxRate", taxRate.toString());
+      formData.append("currencySymbol", currencySymbol);
+      
+      if (logoFile) {
+        formData.append("logo", logoFile);
+      }
+
+      const updatedSettings = await updateSettings(formData);
+      
+      // Update local state with response
+      if (updatedSettings.logo?.url) {
+        setLogoUrl(updatedSettings.logo.url);
+        setLogoPreview("");
+        setLogoFile(null);
+      }
+
+      toast({
+        title: "Settings Saved",
+        description: "Company information has been updated successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to save settings",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingSettings(false);
+    }
   };
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        toast({
+          title: "File Too Large",
+          description: "Logo must be less than 2MB",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      setLogoFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
-        setCompanySettings((prev) => ({ ...prev, logo: reader.result as string }));
+        setLogoPreview(reader.result as string);
       };
       reader.readAsDataURL(file);
     }
@@ -212,99 +266,131 @@ const Settings = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  {/* Logo Upload */}
-                  <div className="space-y-2">
-                    <Label>Company Logo</Label>
-                    <div className="flex items-center gap-4">
-                      <div className="w-24 h-24 rounded-xl border-2 border-dashed border-border flex items-center justify-center bg-secondary/30 overflow-hidden">
-                        {companySettings.logo ? (
-                          <img
-                            src={companySettings.logo}
-                            alt="Company Logo"
-                            className="w-full h-full object-contain"
-                          />
-                        ) : (
-                          <Building2 className="h-8 w-8 text-muted-foreground" />
-                        )}
-                      </div>
-                      <div>
-                        <Label htmlFor="logo-upload" className="cursor-pointer">
-                          <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-secondary text-foreground hover:bg-secondary/80 transition-colors">
-                            <Upload className="h-4 w-4" />
-                            Upload Logo
+                  {isLoadingSettings ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                      <span className="ml-2 text-muted-foreground">Loading settings...</span>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Logo Upload */}
+                      <div className="space-y-2">
+                        <Label>Company Logo</Label>
+                        <div className="flex items-center gap-4">
+                          <div className="w-24 h-24 rounded-xl border-2 border-dashed border-border flex items-center justify-center bg-secondary/30 overflow-hidden">
+                            {logoPreview || logoUrl ? (
+                              <img
+                                src={logoPreview || logoUrl}
+                                alt="Company Logo"
+                                className="w-full h-full object-contain"
+                              />
+                            ) : (
+                              <Building2 className="h-8 w-8 text-muted-foreground" />
+                            )}
                           </div>
-                        </Label>
-                        <input
-                          id="logo-upload"
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={handleLogoUpload}
+                          <div>
+                            <Label htmlFor="logo-upload" className="cursor-pointer">
+                              <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-secondary text-foreground hover:bg-secondary/80 transition-colors">
+                                <Upload className="h-4 w-4" />
+                                Upload Logo
+                              </div>
+                            </Label>
+                            <input
+                              ref={fileInputRef}
+                              id="logo-upload"
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={handleLogoUpload}
+                            />
+                            <p className="text-xs text-muted-foreground mt-1">
+                              PNG, JPG up to 2MB
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Company Name */}
+                      <div className="space-y-2">
+                        <Label htmlFor="company-name">Company Name</Label>
+                        <Input
+                          id="company-name"
+                          value={companyName}
+                          onChange={(e) => setCompanyName(e.target.value)}
+                          placeholder="Enter company name"
                         />
-                        <p className="text-xs text-muted-foreground mt-1">
-                          PNG, JPG up to 2MB
+                      </div>
+
+                      {/* Address */}
+                      <div className="space-y-2">
+                        <Label htmlFor="company-address">Address</Label>
+                        <Input
+                          id="company-address"
+                          value={companyAddress}
+                          onChange={(e) => setCompanyAddress(e.target.value)}
+                          placeholder="Enter company address"
+                        />
+                      </div>
+
+                      {/* Phone & Currency/Tax */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="company-phone">Phone Number</Label>
+                          <Input
+                            id="company-phone"
+                            value={companyPhone}
+                            onChange={(e) => setCompanyPhone(e.target.value)}
+                            placeholder="Enter phone number"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="currency-symbol">Currency Symbol</Label>
+                          <Input
+                            id="currency-symbol"
+                            value={currencySymbol}
+                            onChange={(e) => setCurrencySymbol(e.target.value)}
+                            placeholder="e.g., Rs., $, €"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Default Tax Rate */}
+                      <div className="space-y-2">
+                        <Label htmlFor="tax-rate">Default Tax Rate (%)</Label>
+                        <Input
+                          id="tax-rate"
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.5"
+                          value={taxRate}
+                          onChange={(e) => setTaxRate(parseFloat(e.target.value) || 0)}
+                          placeholder="Enter default tax rate"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          This will be the default tax rate for new invoices
                         </p>
                       </div>
-                    </div>
-                  </div>
 
-                  {/* Company Name */}
-                  <div className="space-y-2">
-                    <Label htmlFor="company-name">Company Name</Label>
-                    <Input
-                      id="company-name"
-                      value={companySettings.name}
-                      onChange={(e) =>
-                        setCompanySettings((prev) => ({ ...prev, name: e.target.value }))
-                      }
-                      placeholder="Enter company name"
-                    />
-                  </div>
-
-                  {/* Address */}
-                  <div className="space-y-2">
-                    <Label htmlFor="company-address">Address</Label>
-                    <Input
-                      id="company-address"
-                      value={companySettings.address}
-                      onChange={(e) =>
-                        setCompanySettings((prev) => ({ ...prev, address: e.target.value }))
-                      }
-                      placeholder="Enter company address"
-                    />
-                  </div>
-
-                  {/* Phone & Email */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="company-phone">Phone Number</Label>
-                      <Input
-                        id="company-phone"
-                        value={companySettings.phone}
-                        onChange={(e) =>
-                          setCompanySettings((prev) => ({ ...prev, phone: e.target.value }))
-                        }
-                        placeholder="Enter phone number"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="company-email">Email Address</Label>
-                      <Input
-                        id="company-email"
-                        type="email"
-                        value={companySettings.email}
-                        onChange={(e) =>
-                          setCompanySettings((prev) => ({ ...prev, email: e.target.value }))
-                        }
-                        placeholder="Enter email address"
-                      />
-                    </div>
-                  </div>
-
-                  <Button onClick={handleSaveCompany} className="w-full md:w-auto">
-                    <Save className="h-4 w-4 mr-2" />
-                    Save Changes
-                  </Button>
+                      <Button 
+                        onClick={handleSaveCompany} 
+                        className="w-full md:w-auto"
+                        disabled={isSavingSettings}
+                      >
+                        {isSavingSettings ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="h-4 w-4 mr-2" />
+                            Save Changes
+                          </>
+                        )}
+                      </Button>
+                    </>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
