@@ -45,7 +45,7 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
               <div className="flex items-center gap-4 mb-4">
                 {/* LOGO ADDED HERE */}
                 <img 
-                  src="/logo.png" 
+                  src="/src/assets/logo.ico" 
                   alt="Light Craft Logo" 
                   className="h-16 w-auto object-contain" 
                 />
