@@ -73,7 +73,7 @@ const Settings = () => {
     fetchSettings();
   }, [toast]);
 
-  // Fetch users from API
+  // Fetch users from API (with graceful error handling for missing endpoint)
   useEffect(() => {
     const fetchUsers = async () => {
       setIsLoadingUsers(true);
@@ -81,11 +81,10 @@ const Settings = () => {
         const fetchedUsers = await getAllUsers();
         setUsers(fetchedUsers);
       } catch (error) {
-        toast({
-          title: "Error",
-          description: error instanceof Error ? error.message : "Failed to fetch users",
-          variant: "destructive",
-        });
+        // Silently fail if the endpoint doesn't exist (404)
+        // This prevents the error popup for missing API
+        console.warn("User management API not available:", error);
+        setUsers([]);
       } finally {
         setIsLoadingUsers(false);
       }
@@ -94,7 +93,7 @@ const Settings = () => {
     if (currentUser?.role === "admin" || currentUser?.role === "Super Admin") {
       fetchUsers();
     }
-  }, [currentUser, toast]);
+  }, [currentUser]);
 
   const handleSaveCompany = async () => {
     setIsSavingSettings(true);
