@@ -182,17 +182,7 @@ export function ProductSearch({ onAddProduct }: ProductSearchProps) {
           )}
         </div>
 
-        {/* Quantity */}
-        <div className="flex items-center gap-2">
-          <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">Qty:</label>
-          <input
-            type="number"
-            value={quantity}
-            onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-            min="1"
-            className="w-20 h-12 px-3 rounded-xl bg-secondary border-2 border-transparent text-foreground text-center font-bold focus:outline-none focus:border-primary transition-colors"
-          />
-        </div>
+        
 
         {/* Quick Add Button (mobile) */}
         <button
