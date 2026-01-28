@@ -44,11 +44,10 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
             <div>
               <div className="flex items-center gap-4 mb-4">
                 {/* LOGO ADDED HERE */}
-                <img 
-                  src="/src/assets/logo.ico" 
-                  alt="Light Craft Logo" 
-                  className="h-16 w-auto object-contain" 
-                />
+
+                  <span className="text-2xl">💡</span>
+
+                
                 
                 <div>
                   <h1 className="text-2xl font-bold text-foreground print:text-black">Light Craft Lahore</h1>
