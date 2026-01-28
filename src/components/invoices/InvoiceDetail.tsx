@@ -40,21 +40,25 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
         {/* Header */}
         <div className="p-6 md:p-8 border-b border-border print:border-gray-300">
           <div className="flex flex-col md:flex-row justify-between gap-6">
-            {/* Company Info */}
+            {/* Company Info - UPDATED SECTION */}
             <div>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="bg-primary/10 rounded-lg p-2 print:bg-gray-100">
-                  <span className="text-2xl">💡</span>
-                </div>
+              <div className="flex items-center gap-4 mb-4">
+                {/* LOGO ADDED HERE */}
+                <img 
+                  src="/logo.png" 
+                  alt="Light Craft Logo" 
+                  className="h-16 w-auto object-contain" 
+                />
+                
                 <div>
-                  <h1 className="text-2xl font-bold text-foreground print:text-black">LED Wholesale</h1>
+                  <h1 className="text-2xl font-bold text-foreground print:text-black">Light Craft Lahore</h1>
                   <p className="text-sm text-muted-foreground print:text-gray-600">Business Manager</p>
                 </div>
               </div>
               <div className="mt-4 text-sm text-muted-foreground print:text-gray-600">
-                <p>123 Main Street, Block A</p>
-                <p>Karachi, Pakistan</p>
-                <p>Phone: 021-1234567</p>
+                <p>2 Beadon Rd, Garhi Shahu</p>
+                <p>Lahore, Pakistan</p>
+                <p>Phone: 0311-7722070</p>
               </div>
             </div>
 
@@ -147,9 +151,9 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
 
         {/* Footer */}
         <div className="p-6 md:p-8 bg-secondary/30 print:bg-gray-50 text-center">
-          <p className="text-sm text-muted-foreground print:text-gray-600">Thank you for your business!</p>
+          <p className="text-sm text-muted-foreground print:text-gray-600">Thank you for your Shopping!</p>
           <p className="text-xs text-muted-foreground print:text-gray-500 mt-1">
-            LED Wholesale • Your trusted LED supplier
+            Light Craft • Your trusted LED supplier
           </p>
         </div>
       </div>
