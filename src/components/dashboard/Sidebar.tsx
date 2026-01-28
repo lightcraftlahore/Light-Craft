@@ -136,7 +136,7 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
           {/* Developer Credit */}
           <div className="px-6 pb-4">
             <a
-              href="https://codeenvision.com"
+              href="https://www.codeenvisiontechnologies.com/"
               target="_blank"
               rel="noopener noreferrer"
               className="group flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-gradient-to-r from-primary/5 to-primary/10 hover:from-primary/10 hover:to-primary/20 border border-primary/10 transition-all duration-300"
