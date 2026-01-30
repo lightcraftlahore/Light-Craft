@@ -60,15 +60,17 @@ const NewInvoice = () => {
     setCartItems((prev) => prev.filter((item) => item.id !== itemId));
   };
 
+  // --- CHANGED: Updated signature to accept discountAmount instead of taxRate ---
   const handleSaveInvoice = async (
     customerInfo: CustomerInfo,
-    taxRate: number,
+    discountAmount: number, 
     paymentMethod: PaymentMethod,
     shouldPrint: boolean
   ) => {
     setIsProcessing(true);
     
     try {
+      // --- CHANGED: Payload uses discountAmount ---
       const payload = {
         customerName: customerInfo.name,
         customerPhone: customerInfo.phone || undefined,
@@ -78,7 +80,7 @@ const NewInvoice = () => {
           price: item.price,
           quantity: item.quantity,
         })),
-        taxRate,
+        discountAmount: discountAmount, // Explicit key matching backend
         paymentMethod,
       };
 
@@ -101,6 +103,7 @@ const NewInvoice = () => {
 
       setCartItems([]);
     } catch (error) {
+      console.error(error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to save invoice. Please try again.",
@@ -111,12 +114,13 @@ const NewInvoice = () => {
     }
   };
 
-  const handleSaveAndPrint = async (customerInfo: CustomerInfo, taxRate: number, paymentMethod: PaymentMethod) => {
-    await handleSaveInvoice(customerInfo, taxRate, paymentMethod, true);
+  // --- CHANGED: Handlers pass discountAmount ---
+  const handleSaveAndPrint = async (customerInfo: CustomerInfo, discountAmount: number, paymentMethod: PaymentMethod) => {
+    await handleSaveInvoice(customerInfo, discountAmount, paymentMethod, true);
   };
 
-  const handleSaveOnly = async (customerInfo: CustomerInfo, taxRate: number, paymentMethod: PaymentMethod) => {
-    await handleSaveInvoice(customerInfo, taxRate, paymentMethod, false);
+  const handleSaveOnly = async (customerInfo: CustomerInfo, discountAmount: number, paymentMethod: PaymentMethod) => {
+    await handleSaveInvoice(customerInfo, discountAmount, paymentMethod, false);
   };
 
   return (
@@ -169,6 +173,7 @@ const NewInvoice = () => {
 };
 
 // Helper function to generate printable invoice HTML
+// --- CHANGED: Updated to show Discount row ---
 function generatePrintableInvoice(invoice: Invoice): string {
   const date = new Date(invoice.createdAt).toLocaleDateString("en-PK", {
     year: "numeric",
@@ -188,6 +193,11 @@ function generatePrintableInvoice(invoice: Invoice): string {
     `
     )
     .join("");
+
+  // Logic to show discount row only if discount > 0
+  const discountRow = invoice.discountAmount > 0 
+    ? `<p style="color: #ef4444;">Discount: <strong>- Rs. ${invoice.discountAmount.toLocaleString()}</strong></p>` 
+    : "";
 
   return `
     <!DOCTYPE html>
@@ -209,7 +219,7 @@ function generatePrintableInvoice(invoice: Invoice): string {
     </head>
     <body>
       <div class="header">
-        <div class="logo">💡 LED Wholesale</div>
+        <div class="logo">💡 Lights Business</div>
         <p style="color: #666; margin: 5px 0;">Business Manager</p>
       </div>
       
@@ -242,13 +252,12 @@ function generatePrintableInvoice(invoice: Invoice): string {
       
       <div class="total-section">
         <p>Subtotal: <strong>Rs. ${invoice.subTotal.toLocaleString()}</strong></p>
-        ${invoice.taxAmount > 0 ? `<p>Tax (${invoice.taxRate}%): <strong>Rs. ${invoice.taxAmount.toLocaleString()}</strong></p>` : ""}
+        ${discountRow}
         <p class="grand-total">Grand Total: Rs. ${invoice.grandTotal.toLocaleString()}</p>
       </div>
       
       <div style="text-align: center; margin-top: 40px; color: #666; font-size: 12px;">
         <p>Thank you for your business!</p>
-        <p>LED Wholesale • Your trusted LED supplier</p>
       </div>
     </body>
     </html>
