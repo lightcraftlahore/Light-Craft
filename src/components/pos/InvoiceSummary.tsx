@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Printer, Save, Calculator, User, Phone, CreditCard, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CartItem } from "./CartTable";
 
 interface InvoiceSummaryProps {
   items: CartItem[];
-  onSaveAndPrint: (customerInfo: CustomerInfo, taxRate: number, paymentMethod: PaymentMethod) => void;
-  onSaveOnly: (customerInfo: CustomerInfo, taxRate: number, paymentMethod: PaymentMethod) => void;
+  // CHANGED: passing discountAmount instead of taxRate
+  onSaveAndPrint: (customerInfo: CustomerInfo, discountAmount: number, paymentMethod: PaymentMethod) => void;
+  onSaveOnly: (customerInfo: CustomerInfo, discountAmount: number, paymentMethod: PaymentMethod) => void;
   isProcessing: boolean;
 }
 
@@ -20,12 +21,22 @@ export interface CustomerInfo {
 export function InvoiceSummary({ items, onSaveAndPrint, onSaveOnly, isProcessing }: InvoiceSummaryProps) {
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
-  const [taxRate, setTaxRate] = useState(0);
+  
+  // CHANGED: State for Discount Amount instead of Tax Rate
+  const [discount, setDiscount] = useState<string>(""); // Keep as string to handle empty input easily
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("Cash");
 
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const taxAmount = (subtotal * taxRate) / 100;
-  const grandTotal = subtotal + taxAmount;
+  
+  // Parse discount safely
+  const discountAmount = parseFloat(discount) || 0;
+  
+  // Ensure discount doesn't exceed subtotal (Visual validation only, backend checks too)
+  const finalDiscount = Math.min(discountAmount, subtotal);
+  
+  // CHANGED: Calculation is now Subtraction
+  const grandTotal = Math.max(0, subtotal - finalDiscount);
+  
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
 
   const customerInfo: CustomerInfo = {
@@ -34,6 +45,19 @@ export function InvoiceSummary({ items, onSaveAndPrint, onSaveOnly, isProcessing
   };
 
   const canSave = items.length > 0 && !isProcessing;
+
+  // Handler to update discount and prevent values > subtotal
+  const handleDiscountChange = (val: string) => {
+    // Allow empty string for better typing experience
+    if (val === "") {
+      setDiscount("");
+      return;
+    }
+    const numVal = parseFloat(val);
+    if (!isNaN(numVal)) {
+        setDiscount(val);
+    }
+  };
 
   return (
     <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
@@ -104,23 +128,32 @@ export function InvoiceSummary({ items, onSaveAndPrint, onSaveOnly, isProcessing
             <span className="font-medium">Rs. {subtotal.toLocaleString()}</span>
           </div>
 
-          {/* Tax Rate Input */}
+          {/* CHANGED: Discount Input Field */}
           <div className="flex justify-between items-center text-sm">
             <div className="flex items-center gap-2">
-              <span className="text-muted-foreground">Tax</span>
-              <input
-                type="number"
-                value={taxRate}
-                onChange={(e) => setTaxRate(Math.max(0, Math.min(100, parseFloat(e.target.value) || 0)))}
-                min="0"
-                max="100"
-                step="0.5"
-                className="w-16 h-7 px-2 rounded-lg bg-secondary border-2 border-transparent text-foreground text-center text-sm focus:outline-none focus:border-primary"
-              />
-              <span className="text-muted-foreground">%</span>
+              <span className="text-muted-foreground">Discount</span>
+              <div className="relative">
+                 <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">Rs.</span>
+                 <input
+                    type="number"
+                    value={discount}
+                    onChange={(e) => handleDiscountChange(e.target.value)}
+                    min="0"
+                    placeholder="0"
+                    className={cn(
+                        "w-24 h-8 pl-8 pr-2 rounded-lg bg-secondary border-2 text-foreground text-right text-sm focus:outline-none focus:border-primary transition-colors",
+                        discountAmount > subtotal ? "border-red-500 focus:border-red-500" : "border-transparent"
+                    )}
+                  />
+              </div>
             </div>
-            <span className="font-medium">Rs. {taxAmount.toLocaleString()}</span>
+            <span className="font-medium text-red-500">- Rs. {finalDiscount.toLocaleString()}</span>
           </div>
+          
+          {/* Validation Warning */}
+          {discountAmount > subtotal && (
+             <p className="text-xs text-red-500 text-right">Discount cannot exceed subtotal</p>
+          )}
 
           <div className="border-t border-border my-3"></div>
 
@@ -136,11 +169,12 @@ export function InvoiceSummary({ items, onSaveAndPrint, onSaveOnly, isProcessing
       {/* Action Buttons */}
       <div className="p-4 md:p-6 pt-0 space-y-3">
         <button
-          onClick={() => onSaveAndPrint(customerInfo, taxRate, paymentMethod)}
-          disabled={!canSave}
+          // CHANGED: Passing finalDiscount instead of taxRate
+          onClick={() => onSaveAndPrint(customerInfo, finalDiscount, paymentMethod)}
+          disabled={!canSave || discountAmount > subtotal}
           className={cn(
             "w-full flex items-center justify-center gap-3 h-14 rounded-xl font-bold text-lg transition-all",
-            canSave
+            canSave && discountAmount <= subtotal
               ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:scale-[1.02]"
               : "bg-secondary text-muted-foreground cursor-not-allowed"
           )}
@@ -154,11 +188,12 @@ export function InvoiceSummary({ items, onSaveAndPrint, onSaveOnly, isProcessing
         </button>
 
         <button
-          onClick={() => onSaveOnly(customerInfo, taxRate, paymentMethod)}
-          disabled={!canSave}
+          // CHANGED: Passing finalDiscount instead of taxRate
+          onClick={() => onSaveOnly(customerInfo, finalDiscount, paymentMethod)}
+          disabled={!canSave || discountAmount > subtotal}
           className={cn(
             "w-full flex items-center justify-center gap-3 h-12 rounded-xl font-bold transition-all",
-            canSave
+            canSave && discountAmount <= subtotal
               ? "bg-success/10 text-success border-2 border-success/30 hover:bg-success/20"
               : "bg-secondary text-muted-foreground cursor-not-allowed border-2 border-transparent"
           )}
