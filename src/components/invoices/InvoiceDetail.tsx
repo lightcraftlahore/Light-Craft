@@ -2,6 +2,8 @@ import { Printer, ArrowLeft, Phone, Calendar, Hash } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { StatusBadge, formatDate } from "@/data/invoices";
 import type { Invoice } from "@/lib/api";
+// 1. Import the logo
+import logo from "@/assets/logo.ico"; 
 
 interface InvoiceDetailProps {
   invoice: Invoice;
@@ -43,11 +45,13 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
             {/* Company Info - UPDATED SECTION */}
             <div>
               <div className="flex items-center gap-4 mb-4">
-                {/* LOGO ADDED HERE */}
-
-                  <span className="text-2xl">💡</span>
-
                 
+                {/* 2. LOGO REPLACES EMOJI HERE */}
+                <img 
+                  src={logo} 
+                  alt="Light Craft Logo" 
+                  className="h-16 w-16 object-contain" 
+                />
                 
                 <div>
                   <h1 className="text-2xl font-bold text-foreground print:text-black">Light Craft Lahore</h1>
@@ -132,12 +136,15 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
                 <span className="text-muted-foreground print:text-gray-600">Subtotal</span>
                 <span className="font-medium">Rs. {invoice.subTotal.toLocaleString()}</span>
               </div>
-              {invoice.taxAmount > 0 && (
+              
+              {/* Discount Section (Based on previous logic, assuming discount replaces tax) */}
+              {invoice.discountAmount > 0 ? (
                 <div className="flex justify-between w-full max-w-xs text-sm">
-                  <span className="text-muted-foreground print:text-gray-600">Tax ({invoice.taxRate}%)</span>
-                  <span className="font-medium">Rs. {invoice.taxAmount.toLocaleString()}</span>
+                   <span className="text-red-500 font-medium">Discount</span>
+                   <span className="font-medium text-red-500">- Rs. {invoice.discountAmount.toLocaleString()}</span>
                 </div>
-              )}
+              ) : null}
+
               <div className="flex justify-between w-full max-w-xs pt-2 border-t border-border print:border-gray-300">
                 <span className="text-lg font-bold text-foreground print:text-black">Grand Total</span>
                 <span className="text-2xl font-extrabold text-primary print:text-blue-600">
