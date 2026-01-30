@@ -5,7 +5,6 @@ import type { CartItem } from "./CartTable";
 
 interface InvoiceSummaryProps {
   items: CartItem[];
-  // CHANGED: passing discountAmount instead of taxRate
   onSaveAndPrint: (customerInfo: CustomerInfo, discountAmount: number, paymentMethod: PaymentMethod) => void;
   onSaveOnly: (customerInfo: CustomerInfo, discountAmount: number, paymentMethod: PaymentMethod) => void;
   isProcessing: boolean;
@@ -21,22 +20,30 @@ export interface CustomerInfo {
 export function InvoiceSummary({ items, onSaveAndPrint, onSaveOnly, isProcessing }: InvoiceSummaryProps) {
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
-  
-  // CHANGED: State for Discount Amount instead of Tax Rate
-  const [discount, setDiscount] = useState<string>(""); // Keep as string to handle empty input easily
+  const [discountInput, setDiscountInput] = useState<string>(""); 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("Cash");
 
-  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  // --- PROFESSIONAL FIX: Auto-reset discount when cart is empty ---
+  useEffect(() => {
+    if (items.length === 0) {
+      setDiscountInput("");
+      setCustomerName(""); // Optional: Clear customer name too for next sale
+      setCustomerPhone("");
+    }
+  }, [items]); // This runs every time 'items' changes
+
+  // 1. Calculate Subtotal
+  const subtotal = items.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0);
   
-  // Parse discount safely
-  const discountAmount = parseFloat(discount) || 0;
+  // 2. Parse Discount
+  const discountVal = parseFloat(discountInput);
+  const discountAmount = isNaN(discountVal) ? 0 : discountVal;
+
+  // 3. Validation Logic
+  // We add (subtotal > 0) to prevent error messages showing on an empty cart
+  const isDiscountValid = discountAmount <= subtotal;
   
-  // Ensure discount doesn't exceed subtotal (Visual validation only, backend checks too)
-  const finalDiscount = Math.min(discountAmount, subtotal);
-  
-  // CHANGED: Calculation is now Subtraction
-  const grandTotal = Math.max(0, subtotal - finalDiscount);
-  
+  const grandTotal = Math.max(0, subtotal - discountAmount);
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
 
   const customerInfo: CustomerInfo = {
@@ -44,20 +51,12 @@ export function InvoiceSummary({ items, onSaveAndPrint, onSaveOnly, isProcessing
     phone: customerPhone.trim(),
   };
 
-  const canSave = items.length > 0 && !isProcessing;
-
-  // Handler to update discount and prevent values > subtotal
   const handleDiscountChange = (val: string) => {
-    // Allow empty string for better typing experience
-    if (val === "") {
-      setDiscount("");
-      return;
-    }
-    const numVal = parseFloat(val);
-    if (!isNaN(numVal)) {
-        setDiscount(val);
-    }
+    if (parseFloat(val) < 0) return;
+    setDiscountInput(val);
   };
+
+  const canSave = items.length > 0 && !isProcessing && isDiscountValid;
 
   return (
     <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
@@ -74,8 +73,8 @@ export function InvoiceSummary({ items, onSaveAndPrint, onSaveOnly, isProcessing
               type="text"
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
-              placeholder="Customer name (optional)"
-              className="w-full h-11 pl-10 pr-4 rounded-xl bg-secondary border-2 border-transparent text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors text-sm"
+              placeholder="Customer name"
+              className="w-full h-11 pl-10 pr-4 rounded-xl bg-secondary border-2 border-transparent text-foreground focus:outline-none focus:border-primary transition-colors text-sm"
             />
           </div>
           <div className="relative">
@@ -84,8 +83,8 @@ export function InvoiceSummary({ items, onSaveAndPrint, onSaveOnly, isProcessing
               type="tel"
               value={customerPhone}
               onChange={(e) => setCustomerPhone(e.target.value)}
-              placeholder="Phone number (optional)"
-              className="w-full h-11 pl-10 pr-4 rounded-xl bg-secondary border-2 border-transparent text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors text-sm"
+              placeholder="Phone number"
+              className="w-full h-11 pl-10 pr-4 rounded-xl bg-secondary border-2 border-transparent text-foreground focus:outline-none focus:border-primary transition-colors text-sm"
             />
           </div>
         </div>
@@ -128,7 +127,6 @@ export function InvoiceSummary({ items, onSaveAndPrint, onSaveOnly, isProcessing
             <span className="font-medium">Rs. {subtotal.toLocaleString()}</span>
           </div>
 
-          {/* CHANGED: Discount Input Field */}
           <div className="flex justify-between items-center text-sm">
             <div className="flex items-center gap-2">
               <span className="text-muted-foreground">Discount</span>
@@ -136,23 +134,29 @@ export function InvoiceSummary({ items, onSaveAndPrint, onSaveOnly, isProcessing
                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">Rs.</span>
                  <input
                     type="number"
-                    value={discount}
+                    value={discountInput}
                     onChange={(e) => handleDiscountChange(e.target.value)}
                     min="0"
                     placeholder="0"
+                    disabled={subtotal === 0} 
                     className={cn(
-                        "w-24 h-8 pl-8 pr-2 rounded-lg bg-secondary border-2 text-foreground text-right text-sm focus:outline-none focus:border-primary transition-colors",
-                        discountAmount > subtotal ? "border-red-500 focus:border-red-500" : "border-transparent"
+                        "w-24 h-8 pl-8 pr-2 rounded-lg bg-secondary border-2 text-foreground text-right text-sm focus:outline-none transition-colors",
+                        !isDiscountValid && subtotal > 0 ? "border-red-500 focus:border-red-500" : "border-transparent focus:border-primary",
+                        subtotal === 0 && "opacity-50 cursor-not-allowed"
                     )}
                   />
               </div>
             </div>
-            <span className="font-medium text-red-500">- Rs. {finalDiscount.toLocaleString()}</span>
+            <span className={cn("font-medium", discountAmount > 0 ? "text-red-500" : "text-foreground")}>
+              - Rs. {discountAmount.toLocaleString()}
+            </span>
           </div>
           
-          {/* Validation Warning */}
-          {discountAmount > subtotal && (
-             <p className="text-xs text-red-500 text-right">Discount cannot exceed subtotal</p>
+          {/* Only show error if cart has items (subtotal > 0) */}
+          {!isDiscountValid && subtotal > 0 && (
+             <p className="text-xs text-red-500 text-right font-medium animate-pulse">
+               Discount cannot exceed subtotal (Rs. {subtotal})
+             </p>
           )}
 
           <div className="border-t border-border my-3"></div>
@@ -166,43 +170,33 @@ export function InvoiceSummary({ items, onSaveAndPrint, onSaveOnly, isProcessing
         </div>
       </div>
 
-      {/* Action Buttons */}
+      {/* Buttons */}
       <div className="p-4 md:p-6 pt-0 space-y-3">
         <button
-          // CHANGED: Passing finalDiscount instead of taxRate
-          onClick={() => onSaveAndPrint(customerInfo, finalDiscount, paymentMethod)}
-          disabled={!canSave || discountAmount > subtotal}
+          onClick={() => onSaveAndPrint(customerInfo, discountAmount, paymentMethod)}
+          disabled={!canSave}
           className={cn(
             "w-full flex items-center justify-center gap-3 h-14 rounded-xl font-bold text-lg transition-all",
-            canSave && discountAmount <= subtotal
+            canSave
               ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:scale-[1.02]"
               : "bg-secondary text-muted-foreground cursor-not-allowed"
           )}
         >
-          {isProcessing ? (
-            <Loader2 className="h-5 w-5 animate-spin" />
-          ) : (
-            <Printer className="h-5 w-5" />
-          )}
+          {isProcessing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Printer className="h-5 w-5" />}
           {isProcessing ? "Processing..." : "Save & Print"}
         </button>
 
         <button
-          // CHANGED: Passing finalDiscount instead of taxRate
-          onClick={() => onSaveOnly(customerInfo, finalDiscount, paymentMethod)}
-          disabled={!canSave || discountAmount > subtotal}
+          onClick={() => onSaveOnly(customerInfo, discountAmount, paymentMethod)}
+          disabled={!canSave}
           className={cn(
             "w-full flex items-center justify-center gap-3 h-12 rounded-xl font-bold transition-all",
-            canSave && discountAmount <= subtotal
+            canSave
               ? "bg-success/10 text-success border-2 border-success/30 hover:bg-success/20"
               : "bg-secondary text-muted-foreground cursor-not-allowed border-2 border-transparent"
           )}
         >
-          {isProcessing ? (
-            <Loader2 className="h-5 w-5 animate-spin" />
-          ) : (
-            <Save className="h-5 w-5" />
-          )}
+           {isProcessing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
           Save Only
         </button>
       </div>
