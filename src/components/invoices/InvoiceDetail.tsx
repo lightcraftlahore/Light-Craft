@@ -1,9 +1,11 @@
+
 import { Printer, ArrowLeft, Phone, Calendar, Hash } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { StatusBadge, formatDate } from "@/data/invoices";
 import type { Invoice } from "@/lib/api";
-// 1. Import the logo
-import logo from "@/assets/logo.ico"; 
+// Import logos
+import logo from "@/assets/logo.ico";
+import oxfordLogo from "@/assets/oxford-logo.png"; // Ensure this exists in your assets
 
 interface InvoiceDetailProps {
   invoice: Invoice;
@@ -38,130 +40,121 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
       </div>
 
       {/* Invoice Document */}
-      <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden print:shadow-none print:border-none print:rounded-none">
-        {/* Header */}
-        <div className="p-6 md:p-8 border-b border-border print:border-gray-300">
-          <div className="flex flex-col md:flex-row justify-between gap-6">
-            {/* Company Info - UPDATED SECTION */}
-            <div>
-              <div className="flex items-center gap-4 mb-4">
-                
-                {/* 2. LOGO REPLACES EMOJI HERE */}
-                <img 
-                  src={logo} 
-                  alt="Light Craft Logo" 
-                  className="h-16 w-16 object-contain" 
-                />
-                
-                <div>
-                  <h1 className="text-2xl font-bold text-foreground print:text-black">Light Craft Lahore</h1>
-                  <p className="text-sm text-muted-foreground print:text-gray-600">Business Manager</p>
-                </div>
-              </div>
-              <div className="mt-4 text-sm text-muted-foreground print:text-gray-600">
-                <p>2 Beadon Rd, Garhi Shahu</p>
-                <p>Lahore, Pakistan</p>
-                <p>Phone: 0311-7722070</p>
-              </div>
-            </div>
-
-            {/* Invoice Info */}
-            <div className="text-left md:text-right">
-              <h2 className="text-3xl font-extrabold text-primary print:text-blue-600 mb-4">INVOICE</h2>
-              <div className="space-y-1 text-sm">
-                <div className="flex items-center gap-2 md:justify-end">
-                  <Hash className="h-4 w-4 text-muted-foreground print:text-gray-500" />
-                  <span className="font-mono font-bold">{invoice.invoiceNumber}</span>
-                </div>
-                <div className="flex items-center gap-2 md:justify-end">
-                  <Calendar className="h-4 w-4 text-muted-foreground print:text-gray-500" />
-                  <span>{formatDate(invoice.createdAt)}</span>
-                </div>
-                <div className="mt-2">
-                  <StatusBadge status={invoice.paymentStatus} />
-                </div>
-              </div>
+      <div className="bg-white p-8 rounded-2xl border border-border shadow-sm overflow-hidden print:shadow-none print:border-none print:rounded-none text-black">
+        
+        {/* Top Branding Section */}
+        <div className="flex justify-between items-start mb-8">
+          <div className="flex gap-4">
+             <img src={lightCraftLogo} alt="Light Craft" className="h-20 w-20 object-contain" />
+             <img src={oxfordLogo} alt="Oxford Next-Gen" className="h-20 w-20 object-contain" />
+          </div>
+          
+          <div className="text-right">
+            <h3 className="font-bold text-lg bg-gray-200 px-4 py-1 rounded">Outlet Details:</h3>
+            <p className="mt-2 text-sm">2 Beadon Road, Lahore</p>
+            <div className="text-sm">
+              <p>Hamza Butt: 0320-9497474</p>
+              <p>Haider Butt: 0311-7722070</p>
             </div>
           </div>
         </div>
 
-        {/* Customer Info */}
-        <div className="p-6 md:p-8 border-b border-border print:border-gray-300 bg-secondary/30 print:bg-gray-50">
-          <h3 className="text-sm font-bold text-muted-foreground print:text-gray-600 uppercase tracking-wider mb-3">Bill To</h3>
-          <div>
-            <p className="text-lg font-bold text-foreground print:text-black">{invoice.customerName}</p>
-            {invoice.customerPhone && (
-              <p className="flex items-center gap-2 text-sm text-muted-foreground print:text-gray-600 mt-1">
-                <Phone className="h-4 w-4" />
-                {invoice.customerPhone}
-              </p>
-            )}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-black tracking-tighter">LIGHT CRAFT</h1>
+        </div>
+
+        {/* Client and Invoice Info */}
+        <div className="flex justify-between mb-8">
+          <div className="w-1/2">
+            <h3 className="bg-gray-200 px-3 py-1 font-bold inline-block mb-2">Sold to:</h3>
+            <p className="font-bold text-lg">{invoice.customerName}</p>
+            <p className="text-sm">Lahore</p>
+            <p className="text-sm">{invoice.customerPhone}</p>
+          </div>
+          
+          <div className="w-1/3">
+             <h2 className="bg-gray-200 text-center font-bold py-1 mb-2">SALE INVOICE</h2>
+             <div className="grid grid-cols-2 text-sm gap-y-1">
+                <span className="font-bold">Invoice #</span>
+                <span className="text-right">{invoice.invoiceNumber}</span>
+                <span className="font-bold">Invoice Date</span>
+                <span className="text-right">{formatDate(invoice.createdAt)}</span>
+             </div>
           </div>
         </div>
 
         {/* Items Table */}
-        <div className="p-6 md:p-8">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b-2 border-border print:border-gray-300">
-                <th className="text-left py-3 text-sm font-bold text-muted-foreground print:text-gray-600 uppercase tracking-wider">Item</th>
-                <th className="text-center py-3 text-sm font-bold text-muted-foreground print:text-gray-600 uppercase tracking-wider">Qty</th>
-                <th className="text-right py-3 text-sm font-bold text-muted-foreground print:text-gray-600 uppercase tracking-wider">Price</th>
-                <th className="text-right py-3 text-sm font-bold text-muted-foreground print:text-gray-600 uppercase tracking-wider">Total</th>
+        <table className="w-full mb-8">
+          <thead>
+            <tr className="border-y-2 border-black bg-gray-50">
+              <th className="text-left py-2 px-2 uppercase text-sm">Description</th>
+              <th className="text-center py-2 px-2 uppercase text-sm">Qty</th>
+              <th className="text-center py-2 px-2 uppercase text-sm">Rate</th>
+              <th className="text-right py-2 px-2 uppercase text-sm">Amount</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {invoice.items.map((item, index) => (
+              <tr key={index}>
+                <td className="py-3 px-2 font-medium">{item.name}</td>
+                <td className="py-3 px-2 text-center">{item.quantity}</td>
+                <td className="py-3 px-2 text-center">{item.price.toLocaleString()}</td>
+                <td className="py-3 px-2 text-right">{ (item.price * item.quantity).toLocaleString() }</td>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-border print:divide-gray-200">
-              {invoice.items.map((item, index) => (
-                <tr key={index}>
-                  <td className="py-4">
-                    <p className="font-bold text-foreground print:text-black">{item.name}</p>
-                    {item.sku && (
-                      <p className="text-xs text-muted-foreground print:text-gray-500 font-mono">{item.sku}</p>
-                    )}
-                  </td>
-                  <td className="py-4 text-center font-medium">{item.quantity}</td>
-                  <td className="py-4 text-right">Rs. {item.price.toLocaleString()}</td>
-                  <td className="py-4 text-right font-bold text-primary print:text-blue-600">
-                    Rs. {(item.price * item.quantity).toLocaleString()}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+            ))}
+          </tbody>
+        </table>
 
-          {/* Totals */}
-          <div className="mt-6 pt-6 border-t-2 border-border print:border-gray-300">
-            <div className="flex flex-col items-end space-y-2">
-              <div className="flex justify-between w-full max-w-xs text-sm">
-                <span className="text-muted-foreground print:text-gray-600">Subtotal</span>
-                <span className="font-medium">Rs. {invoice.subTotal.toLocaleString()}</span>
-              </div>
-              
-              {/* Discount Section (Based on previous logic, assuming discount replaces tax) */}
-              {invoice.discountAmount > 0 ? (
-                <div className="flex justify-between w-full max-w-xs text-sm">
-                   <span className="text-red-500 font-medium">Discount</span>
-                   <span className="font-medium text-red-500">- Rs. {invoice.discountAmount.toLocaleString()}</span>
-                </div>
-              ) : null}
+        {/* Totals Section */}
+        <div className="flex justify-between items-start border-t-2 border-dashed border-black pt-4">
+          <div className="w-1/2">
+             <h4 className="font-bold underline mb-2">Other Outlets:</h4>
+             <ul className="text-xs space-y-1">
+                <li>• Shahzad Trading</li>
+                <li>• Butt Brothers</li>
+                <li>• Saad Bin Abi Waqas</li>
+                <li>• Electric Avenue</li>
+             </ul>
+          </div>
 
-              <div className="flex justify-between w-full max-w-xs pt-2 border-t border-border print:border-gray-300">
-                <span className="text-lg font-bold text-foreground print:text-black">Grand Total</span>
-                <span className="text-2xl font-extrabold text-primary print:text-blue-600">
-                  Rs. {invoice.grandTotal.toLocaleString()}
-                </span>
+          <div className="w-1/3 space-y-2">
+            <div className="flex justify-between font-bold">
+              <span>Total</span>
+              <span>PKR {invoice.subTotal.toLocaleString()}</span>
+            </div>
+            {invoice.discountAmount > 0 && (
+              <div className="flex justify-between text-sm">
+                <span>Advance/Discount</span>
+                <span>PKR -{invoice.discountAmount.toLocaleString()}</span>
               </div>
+            )}
+            <div className="flex justify-between font-black text-xl border-t border-black pt-2">
+              <span>Balance Due</span>
+              <span>PKR {invoice.grandTotal.toLocaleString()}</span>
             </div>
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="p-6 md:p-8 bg-secondary/30 print:bg-gray-50 text-center">
-          <p className="text-sm text-muted-foreground print:text-gray-600">Thank you for your Shopping!</p>
-          <p className="text-xs text-muted-foreground print:text-gray-500 mt-1">
-            Light Craft • Your trusted LED supplier
-          </p>
+        {/* Footer: Terms and Thank You */}
+        <div className="mt-12 grid grid-cols-2 gap-8 items-end">
+          <div className="text-[10px] border border-gray-300 p-2 rounded">
+            <h4 className="font-bold bg-gray-200 px-2 py-1 mb-2">Terms & Conditions:</h4>
+            <ol className="list-decimal ml-4 space-y-1">
+              <li>All Prices are exclusive of Bulbs & Delivery Charges</li>
+              <li>Good Cannot be exchanged or returned</li>
+              <li>Confirm Order at the time of delivery</li>
+              <li>No Damaged items returned or discussed after delivery confirmed</li>
+              <li>Token Money Valid for 10 Days</li>
+            </ol>
+          </div>
+          
+          <div className="text-right italic">
+            <p className="text-sm">On behalf of Light Craft,</p>
+            <h2 className="text-2xl font-serif font-bold text-green-700">Thank You</h2>
+            <p className="text-[10px] mt-2">Please let us know if there's any other work we can help you with.</p>
+          </div>
         </div>
+
       </div>
     </div>
   );
