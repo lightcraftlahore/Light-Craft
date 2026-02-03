@@ -48,8 +48,8 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
         <div className="flex justify-between items-start mb-6">
           {/* Left - Logos */}
           <div className="flex items-center gap-4">
-            <img src={lightCraftLogo} alt="Light Craft" className="h-16 w-16 object-contain" />
-            <img src={oxfordLogo} alt="Oxford Next-Gen" className="h-16 w-auto object-contain rounded" />
+            <img src={lightCraftLogo} alt="Light Craft" className="h-26 w-26 object-contain" />
+            <img src={oxfordLogo} alt="Oxford Next-Gen" className="h-26 w-auto object-contain rounded" />
           </div>
           
           {/* Right - Outlet Details */}
