@@ -5,7 +5,7 @@ import { StatusBadge, formatDate } from "@/data/invoices";
 import type { Invoice } from "@/lib/api";
 // Import logos
 import logo from "@/assets/logo.ico";
-import oxfordLogo from "@/assets/oxford-logo.png"; // Ensure this exists in your assets
+import oxfordLogo from "@/assets/oxford-logo.jpeg"; // Ensure this exists in your assets
 
 interface InvoiceDetailProps {
   invoice: Invoice;
