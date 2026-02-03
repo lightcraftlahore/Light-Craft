@@ -143,7 +143,7 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
                 <span>PKR {invoice.subTotal.toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span>Advance/Payment</span>
+                <span>Discount</span>
                 <span>PKR -{discountOrAdvance.toLocaleString()}</span>
               </div>
               <div className="flex justify-between font-black text-lg border-t border-gray-300 pt-2 mt-2">
