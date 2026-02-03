@@ -1,4 +1,4 @@
-import { Minus, Plus, Trash2, ShoppingCart } from "lucide-react";
+import { Minus, Plus, Trash2, ShoppingCart, Edit2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface CartItem {
@@ -13,10 +13,11 @@ export interface CartItem {
 interface CartTableProps {
   items: CartItem[];
   onUpdateQuantity: (itemId: string, newQuantity: number) => void;
+  onUpdatePrice: (itemId: string, newPrice: number) => void;
   onRemoveItem: (itemId: string) => void;
 }
 
-export function CartTable({ items, onUpdateQuantity, onRemoveItem }: CartTableProps) {
+export function CartTable({ items, onUpdateQuantity, onUpdatePrice, onRemoveItem }: CartTableProps) {
   if (items.length === 0) {
     return (
       <div className="bg-card rounded-2xl border border-border p-8 shadow-sm flex flex-col items-center justify-center min-h-[300px]">
@@ -49,7 +50,7 @@ export function CartTable({ items, onUpdateQuantity, onRemoveItem }: CartTablePr
           <thead className="bg-secondary/50">
             <tr>
               <th className="px-6 py-4 text-muted-foreground text-sm font-bold">Item</th>
-              <th className="px-6 py-4 text-muted-foreground text-sm font-bold text-center">Price</th>
+              <th className="px-6 py-4 text-muted-foreground text-sm font-bold text-center">Price (Rs.)</th>
               <th className="px-6 py-4 text-muted-foreground text-sm font-bold text-center">Quantity</th>
               <th className="px-6 py-4 text-muted-foreground text-sm font-bold text-right">Subtotal</th>
               <th className="px-6 py-4 text-muted-foreground text-sm font-bold w-16"></th>
@@ -62,8 +63,19 @@ export function CartTable({ items, onUpdateQuantity, onRemoveItem }: CartTablePr
                   <p className="font-bold text-foreground">{item.name}</p>
                   <p className="text-xs text-muted-foreground font-mono">{item.sku}</p>
                 </td>
-                <td className="px-6 py-4 text-center text-sm">
-                  Rs. {item.price.toLocaleString()}
+                <td className="px-6 py-4">
+                  <div className="flex items-center justify-center gap-1">
+                    <input
+                      type="number"
+                      value={item.price}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value) || 0;
+                        onUpdatePrice(item.id, Math.max(0, val));
+                      }}
+                      min="0"
+                      className="w-24 h-10 text-center font-bold bg-secondary rounded-lg border-2 border-transparent focus:border-primary focus:outline-none"
+                    />
+                  </div>
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex items-center justify-center gap-2">
@@ -128,6 +140,21 @@ export function CartTable({ items, onUpdateQuantity, onRemoveItem }: CartTablePr
               </button>
             </div>
             
+            {/* Price Input for Mobile */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Price:</span>
+              <input
+                type="number"
+                value={item.price}
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value) || 0;
+                  onUpdatePrice(item.id, Math.max(0, val));
+                }}
+                min="0"
+                className="w-24 h-9 text-center font-bold bg-secondary rounded-lg border-2 border-transparent focus:border-primary focus:outline-none text-sm"
+              />
+            </div>
+            
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <button
@@ -144,9 +171,6 @@ export function CartTable({ items, onUpdateQuantity, onRemoveItem }: CartTablePr
                 >
                   <Plus className="h-4 w-4" />
                 </button>
-                <span className="text-muted-foreground ml-2">
-                  × Rs. {item.price.toLocaleString()}
-                </span>
               </div>
               <span className="font-bold text-primary">
                 Rs. {(item.price * item.quantity).toLocaleString()}
