@@ -4,7 +4,7 @@ import { formatDate } from "@/data/invoices";
 import type { Invoice } from "@/lib/api";
 // Import logos
 import lightCraftLogo from "@/assets/logo.ico";
-import oxfordLogo from "@/assets/oxford-logo.png";
+import oxfordLogo from "@/assets/oxford-logo.jpeg";
 
 interface InvoiceDetailProps {
   invoice: Invoice;
