@@ -7,7 +7,7 @@ export interface Product {
   id: string;
   name: string;
   sku: string;
-  sellingPrice: number;
+  sellingPrice: number | null;
   currentStock: number;
 }
 
@@ -40,7 +40,7 @@ export function ProductSearch({ onAddProduct }: ProductSearchProps) {
           id: p._id,
           name: p.name,
           sku: p.sku,
-          sellingPrice: p.sellingPrice,
+          sellingPrice: p.sellingPrice ?? null,
           currentStock: p.stock,
         }));
         setProducts(mappedProducts);
@@ -162,7 +162,7 @@ export function ProductSearch({ onAddProduct }: ProductSearchProps) {
                     <p className="text-xs text-muted-foreground font-mono">{product.sku}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold text-primary">Rs. {product.sellingPrice.toLocaleString()}</p>
+                    <p className="font-bold text-primary">{product.sellingPrice ? `Rs. ${product.sellingPrice.toLocaleString()}` : <span className="text-muted-foreground text-xs">No price set</span>}</p>
                     <p className={cn(
                       "text-xs",
                       product.currentStock <= 10 ? "text-destructive" : "text-muted-foreground"

@@ -95,9 +95,8 @@ export function ProductForm({ initialData, isEditing = false, productId }: Produ
       newErrors.costPrice = "Enter a valid price";
     }
 
-    if (!formData.sellingPrice) {
-      newErrors.sellingPrice = "Selling price is required";
-    } else if (isNaN(Number(formData.sellingPrice)) || Number(formData.sellingPrice) < 0) {
+    // Selling price is optional - only validate if provided
+    if (formData.sellingPrice && (isNaN(Number(formData.sellingPrice)) || Number(formData.sellingPrice) < 0)) {
       newErrors.sellingPrice = "Enter a valid price";
     }
 
@@ -266,7 +265,6 @@ export function ProductForm({ initialData, isEditing = false, productId }: Produ
 
             <FormField
               label="Selling Price (Rs.)"
-              required
               error={errors.sellingPrice}
             >
               <input

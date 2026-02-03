@@ -7,6 +7,9 @@ import { CartTable, type CartItem } from "@/components/pos/CartTable";
 import { InvoiceSummary, type CustomerInfo, type PaymentMethod } from "@/components/pos/InvoiceSummary";
 import { createInvoice, type Invoice } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+// Import logos for print
+import lightCraftLogo from "@/assets/logo.ico";
+import oxfordLogo from "@/assets/oxford-logo.png";
 
 const NewInvoice = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -33,7 +36,7 @@ const NewInvoice = () => {
         productId: product.id,
         name: product.name,
         sku: product.sku,
-        price: product.sellingPrice,
+        price: product.sellingPrice ?? 0, // Default to 0 if no selling price
         quantity,
       };
       
@@ -56,11 +59,18 @@ const NewInvoice = () => {
     );
   };
 
+  const handleUpdatePrice = (itemId: string, newPrice: number) => {
+    setCartItems((prev) =>
+      prev.map((item) =>
+        item.id === itemId ? { ...item, price: newPrice } : item
+      )
+    );
+  };
+
   const handleRemoveItem = (itemId: string) => {
     setCartItems((prev) => prev.filter((item) => item.id !== itemId));
   };
 
-  // --- CHANGED: Updated signature to accept discountAmount instead of taxRate ---
   const handleSaveInvoice = async (
     customerInfo: CustomerInfo,
     discountAmount: number, 
@@ -70,7 +80,6 @@ const NewInvoice = () => {
     setIsProcessing(true);
     
     try {
-      // --- CHANGED: Payload uses discountAmount ---
       const payload = {
         customerName: customerInfo.name,
         customerPhone: customerInfo.phone || undefined,
@@ -81,7 +90,7 @@ const NewInvoice = () => {
           quantity: item.quantity,
         })),
         discountAmount: discountAmount,
-        taxRate: 0, // No tax, using discount instead
+        taxRate: 0,
         paymentMethod,
       };
 
@@ -90,7 +99,7 @@ const NewInvoice = () => {
       if (shouldPrint) {
         const printWindow = window.open("", "_blank");
         if (printWindow) {
-          printWindow.document.write(generatePrintableInvoice(savedInvoice));
+          printWindow.document.write(generatePrintableInvoice(savedInvoice, lightCraftLogo, oxfordLogo));
           printWindow.document.close();
           printWindow.focus();
           printWindow.print();
@@ -115,7 +124,6 @@ const NewInvoice = () => {
     }
   };
 
-  // --- CHANGED: Handlers pass discountAmount ---
   const handleSaveAndPrint = async (customerInfo: CustomerInfo, discountAmount: number, paymentMethod: PaymentMethod) => {
     await handleSaveInvoice(customerInfo, discountAmount, paymentMethod, true);
   };
@@ -151,6 +159,7 @@ const NewInvoice = () => {
               <CartTable
                 items={cartItems}
                 onUpdateQuantity={handleUpdateQuantity}
+                onUpdatePrice={handleUpdatePrice}
                 onRemoveItem={handleRemoveItem}
               />
             </div>
@@ -173,9 +182,8 @@ const NewInvoice = () => {
   );
 };
 
-// Helper function to generate printable invoice HTML
-// --- CHANGED: Updated to show Discount row ---
-function generatePrintableInvoice(invoice: Invoice): string {
+// Helper function to generate printable invoice HTML with proper image URLs
+function generatePrintableInvoice(invoice: Invoice, lightCraftLogoUrl: string, oxfordLogoUrl: string): string {
   const date = new Date(invoice.createdAt).toLocaleDateString("en-PK", {
     year: "numeric",
     month: "long",
@@ -186,20 +194,16 @@ function generatePrintableInvoice(invoice: Invoice): string {
     .map(
       (item) => `
       <tr>
-        <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.name}<br><small style="color: #666;">${item.sku || ""}</small></td>
+        <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.name}</td>
         <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
-        <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">Rs. ${item.price.toLocaleString()}</td>
-        <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right; font-weight: bold;">Rs. ${(item.price * item.quantity).toLocaleString()}</td>
+        <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">${item.price.toLocaleString()}</td>
+        <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right; font-weight: bold;">${(item.price * item.quantity).toLocaleString()}</td>
       </tr>
     `
     )
     .join("");
 
-  // Logic to show discount row only if discount > 0
   const discountAmount = invoice.discountAmount || 0;
-  const discountRow = discountAmount > 0 
-    ? `<p>Advance/Payment: <strong>- PKR ${discountAmount.toLocaleString()}</strong></p>` 
-    : "";
 
   return `
     <!DOCTYPE html>
@@ -207,14 +211,14 @@ function generatePrintableInvoice(invoice: Invoice): string {
     <head>
       <title>Invoice ${invoice.invoiceNumber}</title>
       <style>
-        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 20px; font-size: 12px; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 20px; font-size: 12px; color: #000; background: #fff; }
         .top-section { display: flex; justify-content: space-between; margin-bottom: 20px; }
         .logos { display: flex; gap: 15px; align-items: center; }
-        .logos img { height: 50px; object-fit: contain; }
+        .logos img { height: 60px; width: auto; object-fit: contain; }
         .outlet-details { text-align: right; font-size: 11px; }
         .outlet-details h3 { background: #e5e5e5; padding: 4px 10px; display: inline-block; margin-bottom: 8px; font-size: 12px; }
         .company-title { text-align: center; margin-bottom: 20px; }
-        .company-title h1 { font-size: 28px; margin: 0; letter-spacing: 2px; }
+        .company-title h1 { font-size: 28px; margin: 0; letter-spacing: 2px; font-weight: 900; }
         .company-title p { color: #666; margin: 5px 0 0; font-size: 11px; }
         .info-section { display: flex; justify-content: space-between; margin-bottom: 20px; }
         .sold-to h3 { background: #333; color: white; padding: 4px 10px; display: inline-block; margin-bottom: 8px; font-size: 11px; }
@@ -243,8 +247,8 @@ function generatePrintableInvoice(invoice: Invoice): string {
     <body>
       <div class="top-section">
         <div class="logos">
-          <div style="font-size: 24px; font-weight: bold;">🔆</div>
-          <div style="font-size: 24px; font-weight: bold;">🐂</div>
+          <img src="${lightCraftLogoUrl}" alt="Light Craft" />
+          <img src="${oxfordLogoUrl}" alt="Oxford" />
         </div>
         <div class="outlet-details">
           <h3>Outlet Details:</h3>
