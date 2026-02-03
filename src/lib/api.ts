@@ -228,6 +228,7 @@ export interface Invoice {
   subTotal: number;
   taxRate: number;
   taxAmount: number;
+  discountAmount: number;
   grandTotal: number;
   paymentMethod: "Cash" | "Card" | "Bank Transfer";
   paymentStatus: "Paid" | "Pending";
@@ -248,7 +249,8 @@ export interface CreateInvoicePayload {
     price: number;
     quantity: number;
   }[];
-  taxRate: number;
+  taxRate?: number;
+  discountAmount?: number;
   paymentMethod: "Cash" | "Card" | "Bank Transfer";
 }
 
