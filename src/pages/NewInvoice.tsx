@@ -80,7 +80,8 @@ const NewInvoice = () => {
           price: item.price,
           quantity: item.quantity,
         })),
-        discountAmount: discountAmount, // Explicit key matching backend
+        discountAmount: discountAmount,
+        taxRate: 0, // No tax, using discount instead
         paymentMethod,
       };
 
@@ -195,8 +196,9 @@ function generatePrintableInvoice(invoice: Invoice): string {
     .join("");
 
   // Logic to show discount row only if discount > 0
-  const discountRow = invoice.discountAmount > 0 
-    ? `<p style="color: #ef4444;">Discount: <strong>- Rs. ${invoice.discountAmount.toLocaleString()}</strong></p>` 
+  const discountAmount = invoice.discountAmount || 0;
+  const discountRow = discountAmount > 0 
+    ? `<p>Advance/Payment: <strong>- PKR ${discountAmount.toLocaleString()}</strong></p>` 
     : "";
 
   return `
@@ -205,44 +207,87 @@ function generatePrintableInvoice(invoice: Invoice): string {
     <head>
       <title>Invoice ${invoice.invoiceNumber}</title>
       <style>
-        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 20px; }
-        .header { text-align: center; margin-bottom: 30px; }
-        .logo { font-size: 24px; font-weight: bold; color: #136dec; }
-        .invoice-info { display: flex; justify-content: space-between; margin-bottom: 20px; }
-        .invoice-info div { }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        th { background: #f5f5f5; padding: 10px; text-align: left; }
-        .total-section { text-align: right; font-size: 18px; }
-        .grand-total { font-size: 24px; font-weight: bold; color: #136dec; }
-        @media print { body { padding: 0; } }
+        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 20px; font-size: 12px; }
+        .top-section { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        .logos { display: flex; gap: 15px; align-items: center; }
+        .logos img { height: 50px; object-fit: contain; }
+        .outlet-details { text-align: right; font-size: 11px; }
+        .outlet-details h3 { background: #e5e5e5; padding: 4px 10px; display: inline-block; margin-bottom: 8px; font-size: 12px; }
+        .company-title { text-align: center; margin-bottom: 20px; }
+        .company-title h1 { font-size: 28px; margin: 0; letter-spacing: 2px; }
+        .company-title p { color: #666; margin: 5px 0 0; font-size: 11px; }
+        .info-section { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        .sold-to h3 { background: #333; color: white; padding: 4px 10px; display: inline-block; margin-bottom: 8px; font-size: 11px; }
+        .invoice-box h2 { background: #333; color: white; padding: 6px 10px; text-align: center; margin-bottom: 8px; font-size: 12px; }
+        .invoice-box table { width: 100%; font-size: 11px; }
+        .invoice-box td { padding: 4px 0; }
+        table.items { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        table.items th { background: #f0f0f0; padding: 8px; text-align: left; border-top: 2px solid #999; border-bottom: 2px solid #999; font-size: 11px; }
+        table.items td { padding: 8px; border-bottom: 1px solid #eee; }
+        .totals { text-align: right; margin-top: 20px; padding-top: 15px; border-top: 2px dashed #999; }
+        .totals table { margin-left: auto; width: 250px; }
+        .totals td { padding: 4px 8px; }
+        .totals .balance { font-size: 16px; font-weight: bold; border-top: 1px solid #ccc; padding-top: 8px; }
+        .footer { display: flex; justify-content: space-between; margin-top: 30px; align-items: flex-end; }
+        .terms { border: 1px solid #ccc; padding: 10px; width: 55%; font-size: 10px; }
+        .terms h4 { background: #e5e5e5; padding: 4px 8px; margin: 0 0 8px; }
+        .terms ol { margin: 0; padding-left: 18px; }
+        .terms li { margin-bottom: 3px; color: #555; }
+        .thank-you { text-align: right; }
+        .thank-you .msg { color: #666; font-size: 11px; }
+        .thank-you h2 { color: #16a34a; font-size: 28px; font-style: italic; margin: 5px 0; font-family: Georgia, serif; }
+        .thank-you .small { font-size: 9px; color: #888; }
+        @media print { body { padding: 10px; } }
       </style>
     </head>
     <body>
-      <div class="header">
-        <div class="logo">💡 Lights Business</div>
-        <p style="color: #666; margin: 5px 0;">Business Manager</p>
+      <div class="top-section">
+        <div class="logos">
+          <div style="font-size: 24px; font-weight: bold;">🔆</div>
+          <div style="font-size: 24px; font-weight: bold;">🐂</div>
+        </div>
+        <div class="outlet-details">
+          <h3>Outlet Details:</h3>
+          <p><strong>Light Craft</strong></p>
+          <p>2 Beadon Road, Lahore</p>
+          <p>Hamza Butt: 0320-9497474</p>
+          <p>Haider Butt: 0311-7722070</p>
+          <p style="margin-top: 8px;"><strong>Other Outlets:</strong></p>
+          <p>1- Shahzad Trading</p>
+          <p>2- Butt Brothers</p>
+          <p>3- Saad Bin Abi Waqas</p>
+          <p>4- Electric Avenue</p>
+        </div>
       </div>
       
-      <div class="invoice-info">
-        <div>
-          <strong>Bill To:</strong><br>
-          ${invoice.customerName}<br>
-          ${invoice.customerPhone || "—"}
+      <div class="company-title">
+        <h1>LIGHT CRAFT</h1>
+        <p>Deal In COB, SMD & All Indoor OutDoor Lights</p>
+      </div>
+      
+      <div class="info-section">
+        <div class="sold-to">
+          <h3>Sold to:</h3>
+          <p style="font-weight: bold; font-size: 14px;">${invoice.customerName}</p>
+          <p>Lahore</p>
+          <p>${invoice.customerPhone || "—"}</p>
         </div>
-        <div style="text-align: right;">
-          <strong>Invoice #:</strong> ${invoice.invoiceNumber}<br>
-          <strong>Date:</strong> ${date}<br>
-          <strong>Payment:</strong> ${invoice.paymentMethod}
+        <div class="invoice-box" style="width: 200px;">
+          <h2>SALE INVOICE</h2>
+          <table>
+            <tr><td><strong>Invoice #</strong></td><td style="text-align: right;">${invoice.invoiceNumber}</td></tr>
+            <tr><td><strong>Invoice Date</strong></td><td style="text-align: right;">${date}</td></tr>
+          </table>
         </div>
       </div>
       
-      <table>
+      <table class="items">
         <thead>
           <tr>
-            <th>Item</th>
+            <th>Description</th>
             <th style="text-align: center;">Qty</th>
-            <th style="text-align: right;">Price</th>
-            <th style="text-align: right;">Subtotal</th>
+            <th style="text-align: center;">Rate</th>
+            <th style="text-align: right;">Amount</th>
           </tr>
         </thead>
         <tbody>
@@ -250,14 +295,33 @@ function generatePrintableInvoice(invoice: Invoice): string {
         </tbody>
       </table>
       
-      <div class="total-section">
-        <p>Subtotal: <strong>Rs. ${invoice.subTotal.toLocaleString()}</strong></p>
-        ${discountRow}
-        <p class="grand-total">Grand Total: Rs. ${invoice.grandTotal.toLocaleString()}</p>
+      <div class="totals">
+        <table>
+          <tr><td><strong>Total</strong></td><td style="text-align: right;">PKR ${invoice.subTotal.toLocaleString()}</td></tr>
+          <tr><td>Advance/Payment</td><td style="text-align: right;">PKR -${discountAmount.toLocaleString()}</td></tr>
+          <tr class="balance"><td><strong>Balance Due</strong></td><td style="text-align: right;"><strong>PKR ${invoice.grandTotal.toLocaleString()}</strong></td></tr>
+        </table>
       </div>
       
-      <div style="text-align: center; margin-top: 40px; color: #666; font-size: 12px;">
-        <p>Thank you for your business!</p>
+      <div class="footer">
+        <div class="terms">
+          <h4>Terms & Conditions:</h4>
+          <ol>
+            <li>All Prices are exclusive of Bulbs & Delivery Charges</li>
+            <li>Goods Cannot be exchanged or returned</li>
+            <li>Confirm Order at the time of delivery</li>
+            <li>No Damaged items returned or discussed after delivery confirmed</li>
+            <li>Token Money Valid for 10 Days</li>
+          </ol>
+        </div>
+        <div class="thank-you">
+          <p class="msg">On behalf of Light Craft,</p>
+          <p class="msg">we wanted to say</p>
+          <h2>Thank</h2>
+          <h2>You</h2>
+          <p class="small">for choosing us.</p>
+          <p class="small">Please let us know if there's any other work we can help you with.</p>
+        </div>
       </div>
     </body>
     </html>
