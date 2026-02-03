@@ -49,7 +49,7 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
           {/* Left - Logos */}
           <div className="flex items-center gap-4">
             <img src={lightCraftLogo} alt="Light Craft" className="h-26 w-26 object-contain" />
-            <img src={oxfordLogo} alt="Oxford Next-Gen" className="h-26 w-auto object-contain rounded" />
+            <img src={oxfordLogo} alt="Oxford Next-Gen" className="h-26 w-26 object-contain rounded" />
           </div>
           
           {/* Right - Outlet Details */}
