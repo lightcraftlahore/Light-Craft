@@ -1,4 +1,4 @@
-const API_BASE_URL = "https://light-craft-lahore-backend.vercel.app/api";
+const API_BASE_URL = "https://light-craft-backend.vercel.app/api";
 
 // ============ Types ============
 
