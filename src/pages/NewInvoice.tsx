@@ -212,10 +212,11 @@ function generatePrintableInvoice(invoice: Invoice, lightCraftLogoUrl: string, o
       <title>Invoice ${invoice.invoiceNumber}</title>
       <style>
         body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 20px; font-size: 12px; color: #000; background: #fff; }
-        .top-section { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
-        .logos { display: flex; gap: 30px; align-items: center; }
-        .logos img.lightcraft-logo { height: 90px; width: 90px; object-fit: contain; }
-        .logos img.oxford-logo { height: 75px; width: auto; max-width: 180px; object-fit: contain; }
+        .top-section { display: grid; grid-template-columns: 1fr 1fr 1fr; align-items: center; margin-bottom: 20px; }
+        .logo-left { display: flex; justify-content: flex-start; align-items: center; }
+        .logo-left img { height: 90px; width: 90px; object-fit: contain; }
+        .logo-center { display: flex; justify-content: center; align-items: center; }
+        .logo-center img { height: 75px; width: auto; max-width: 180px; object-fit: contain; }
         .outlet-details { text-align: right; font-size: 11px; }
         .outlet-details h3 { background: #e5e5e5; padding: 4px 10px; display: inline-block; margin-bottom: 8px; font-size: 12px; }
         .company-title { text-align: center; margin-bottom: 20px; }
@@ -247,9 +248,11 @@ function generatePrintableInvoice(invoice: Invoice, lightCraftLogoUrl: string, o
     </head>
     <body>
       <div class="top-section">
-        <div class="logos">
-          <img class="lightcraft-logo" src="${lightCraftLogoUrl}" alt="Light Craft" />
-          <img class="oxford-logo" src="${oxfordLogoUrl}" alt="Oxford Next-Gen Lighting" />
+        <div class="logo-left">
+          <img src="${lightCraftLogoUrl}" alt="Light Craft" />
+        </div>
+        <div class="logo-center">
+          <img src="${oxfordLogoUrl}" alt="Oxford Next-Gen Lighting" />
         </div>
         <div class="outlet-details">
           <h3>Outlet Details:</h3>
