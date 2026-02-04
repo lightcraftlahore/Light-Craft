@@ -46,21 +46,21 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
         
         {/* Top Branding Section - Updated Logo Sizes and Oxford Placement */}
         <div className="grid grid-cols-3 items-start mb-6">
-          {/* Left - Light Craft Logo (1.5x larger) */}
-          <div className="flex justify-start">
+          {/* Left - Light Craft Logo */}
+          <div className="flex justify-start items-center">
             <img 
               src={lightCraftLogo} 
               alt="Light Craft" 
-              className="h-36 w-36 object-contain" 
+              className="h-28 w-28 object-contain print:h-24 print:w-24" 
             />
           </div>
 
-          {/* Center - Oxford Logo (1.5x larger) */}
-          <div className="flex justify-center">
+          {/* Center - Oxford Logo (prominent) */}
+          <div className="flex justify-center items-center">
             <img 
               src={oxfordLogo} 
-              alt="Oxford Next-Gen" 
-              className="h-36 w-36 object-contain rounded" 
+              alt="Oxford Next-Gen Lighting" 
+              className="h-24 w-auto max-w-[220px] object-contain print:h-20 print:max-w-[180px]" 
             />
           </div>
           
