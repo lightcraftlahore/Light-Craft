@@ -306,7 +306,7 @@ function generatePrintableInvoice(invoice: Invoice, lightCraftLogoUrl: string, o
       <div class="totals">
         <table>
           <tr><td><strong>Total</strong></td><td style="text-align: right;">PKR ${invoice.subTotal.toLocaleString()}</td></tr>
-          <tr><td>Advance/Payment</td><td style="text-align: right;">PKR -${discountAmount.toLocaleString()}</td></tr>
+          <tr><td>Discount</td><td style="text-align: right;">PKR -${discountAmount.toLocaleString()}</td></tr>
           <tr class="balance"><td><strong>Balance Due</strong></td><td style="text-align: right;"><strong>PKR ${invoice.grandTotal.toLocaleString()}</strong></td></tr>
         </table>
       </div>
