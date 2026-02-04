@@ -212,9 +212,10 @@ function generatePrintableInvoice(invoice: Invoice, lightCraftLogoUrl: string, o
       <title>Invoice ${invoice.invoiceNumber}</title>
       <style>
         body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 20px; font-size: 12px; color: #000; background: #fff; }
-        .top-section { display: flex; justify-content: space-between; margin-bottom: 20px; }
-        .logos { display: flex; gap: 15px; align-items: center; }
-        .logos img { height: 60px; width: auto; object-fit: contain; }
+        .top-section { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+        .logos { display: flex; gap: 30px; align-items: center; }
+        .logos img.lightcraft-logo { height: 90px; width: 90px; object-fit: contain; }
+        .logos img.oxford-logo { height: 75px; width: auto; max-width: 180px; object-fit: contain; }
         .outlet-details { text-align: right; font-size: 11px; }
         .outlet-details h3 { background: #e5e5e5; padding: 4px 10px; display: inline-block; margin-bottom: 8px; font-size: 12px; }
         .company-title { text-align: center; margin-bottom: 20px; }
@@ -247,8 +248,8 @@ function generatePrintableInvoice(invoice: Invoice, lightCraftLogoUrl: string, o
     <body>
       <div class="top-section">
         <div class="logos">
-          <img src="${lightCraftLogoUrl}" alt="Light Craft" />
-          <img src="${oxfordLogoUrl}" alt="Oxford" />
+          <img class="lightcraft-logo" src="${lightCraftLogoUrl}" alt="Light Craft" />
+          <img class="oxford-logo" src="${oxfordLogoUrl}" alt="Oxford Next-Gen Lighting" />
         </div>
         <div class="outlet-details">
           <h3>Outlet Details:</h3>
